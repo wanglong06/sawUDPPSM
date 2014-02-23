@@ -1,14 +1,14 @@
 #
-# $Id: sawIntuitiveResearchKitConfig.cmake.in 4184 2013-05-15 23:21:08Z adeguet1 $
+# $Id: sawUDPPSMConfig.cmake.in 4184 2013-05-15 23:21:08Z adeguet1 $
 
 # Author(s):  Anton Deguet
-# Created on: 2011-01-20
+# Created on: 2014-02-20
 #
-# (C) Copyright 2011 Johns Hopkins University (JHU), All Rights
+# (C) Copyright 2014 Johns Hopkins University (JHU), All Rights
 # Reserved.
 #
 
 
-set (sawIntuitiveResearchKit_INCLUDE_DIR "@sawIntuitiveResearchKit_INCLUDE_DIR@")
-set (sawIntuitiveResearchKit_LIBRARY_DIR "@sawIntuitiveResearchKit_LIBRARY_DIR@")
-set (sawIntuitiveResearchKit_LIBRARIES   "@sawIntuitiveResearchKit_LIBRARIES@")
+set (sawUDPPSM_INCLUDE_DIR "@sawUDPPSM_INCLUDE_DIR@")
+set (sawUDPPSM_LIBRARY_DIR "@sawUDPPSM_LIBRARY_DIR@")
+set (sawUDPPSM_LIBRARIES   "@sawUDPPSM_LIBRARIES@")

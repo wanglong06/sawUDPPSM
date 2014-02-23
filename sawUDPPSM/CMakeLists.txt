@@ -12,7 +12,7 @@
 # --- end cisst license ---
 
 # project name
-project (sawIntuitiveResearchKit)
+project (sawUDPPSM)
 
 add_subdirectory (code)
 add_subdirectory (examples)

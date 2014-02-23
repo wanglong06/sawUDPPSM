@@ -37,6 +37,8 @@ http://www.cisst.org/cisst/license.txt.
 #include <sawControllers/mtsTeleOperation.h>
 #include <sawControllers/mtsTeleOperationQtWidget.h>
 
+#include <sawUDPPSM/mtsUDPPSM.h>
+
 #include <QTabWidget>
 
 #include <json/json.h>
@@ -159,8 +161,10 @@ int main(int argc, char ** argv)
         Json::Value jsonSlave = pairs[index]["slave"];
         armName = jsonSlave["name"].asString();
         ioFile = jsonSlave["io"].asString();
-        fileExists(armName + " IO", ioFile);
-        io->Configure(ioFile);
+        if (!ioFile.empty()) {
+            fileExists(armName + " IO", ioFile);
+            io->Configure(ioFile);
+        }
     }
 
     componentManager->AddComponent(io);
@@ -221,14 +225,22 @@ int main(int argc, char ** argv)
         std::string slavePIDFile = jsonSlave["pid"].asString();
         std::string slaveKinematicFile = jsonSlave["kinematic"].asString();
 
-        fileExists(slaveName + " PID", slavePIDFile);
-        fileExists(slaveName + " kinematic", slaveKinematicFile);
-        mtsIntuitiveResearchKitConsole::Arm * psm
-                = new mtsIntuitiveResearchKitConsole::Arm(slaveName, io->GetName());
-        psm->ConfigurePID(slavePIDFile);
-        psm->ConfigureArm(mtsIntuitiveResearchKitConsole::Arm::ARM_PSM,
-                          slaveKinematicFile, periodKinematics);
-        console->AddArm(psm);
+        mtsIntuitiveResearchKitConsole::Arm * psm;
+        mtsUDPPSM * udppsm;
+
+        if (!slavePIDFile.empty()) {
+            fileExists(slaveName + " PID", slavePIDFile);
+            fileExists(slaveName + " kinematic", slaveKinematicFile);
+            psm = new mtsIntuitiveResearchKitConsole::Arm(slaveName, io->GetName());
+            psm->ConfigurePID(slavePIDFile);
+            psm->ConfigureArm(mtsIntuitiveResearchKitConsole::Arm::ARM_PSM,
+                              slaveKinematicFile, periodKinematics);
+            console->AddArm(psm);
+        } else {
+            udppsm = new mtsUDPPSM(slaveName, 1.0 * cmn_ms);
+            componentManager->AddComponent(udppsm);
+            console->AddArm(udppsm, mtsIntuitiveResearchKitConsole::Arm::ARM_PSM);
+        }
 
         // PID Master GUI
         std::string masterPIDName = masterName + " PID";
@@ -239,12 +251,14 @@ int main(int argc, char ** argv)
         tabWidget->addTab(pidMasterGUI, masterPIDName.c_str());
 
         // PID Slave GUI
-        std::string slavePIDName = slaveName + " PID";
-        mtsPIDQtWidget * pidSlaveGUI = new mtsPIDQtWidget(slavePIDName, 7);
-        pidSlaveGUI->Configure();
-        componentManager->AddComponent(pidSlaveGUI);
-        componentManager->Connect(pidSlaveGUI->GetName(), "Controller", psm->PIDComponentName(), "Controller");
-        tabWidget->addTab(pidSlaveGUI, slavePIDName.c_str());
+        if (!slavePIDFile.empty()) {
+            std::string slavePIDName = slaveName + " PID";
+            mtsPIDQtWidget * pidSlaveGUI = new mtsPIDQtWidget(slavePIDName, 7);
+            pidSlaveGUI->Configure();
+            componentManager->AddComponent(pidSlaveGUI);
+            componentManager->Connect(pidSlaveGUI->GetName(), "Controller", psm->PIDComponentName(), "Controller");
+            tabWidget->addTab(pidSlaveGUI, slavePIDName.c_str());
+        }
 
         // Master GUI
         mtsIntuitiveResearchKitArmQtWidget * masterGUI = new mtsIntuitiveResearchKitArmQtWidget(mtm->Name() + "GUI");
@@ -255,12 +269,18 @@ int main(int argc, char ** argv)
         componentManager->Connect(masterGUI->GetName(), "Manipulator", mtm->Name(), "Robot");
 
         // Slave GUI
-        mtsIntuitiveResearchKitArmQtWidget * slaveGUI = new mtsIntuitiveResearchKitArmQtWidget(psm->Name() + "GUI");
+        std::string psmName;
+        if (!slavePIDFile.empty()) {
+            psmName = psm->Name();
+        } else {
+            psmName = udppsm->GetName();
+        }
+        mtsIntuitiveResearchKitArmQtWidget * slaveGUI = new mtsIntuitiveResearchKitArmQtWidget(psmName + "GUI");
         slaveGUI->Configure();
         componentManager->AddComponent(slaveGUI);
-        tabWidget->addTab(slaveGUI, psm->Name().c_str());
+        tabWidget->addTab(slaveGUI, psmName.c_str());
         // connect slaveGUI to slave
-        componentManager->Connect(slaveGUI->GetName(), "Manipulator", psm->Name(), "Robot");
+        componentManager->Connect(slaveGUI->GetName(), "Manipulator", psmName, "Robot");
 
         // Teleoperation
         std::string teleName = masterName + "-" + slaveName;
@@ -274,7 +294,7 @@ int main(int argc, char ** argv)
         componentManager->Connect(teleGUI->GetName(), "TeleOperation", tele->GetName(), "Setting");
 
         componentManager->Connect(tele->GetName(), "Master", mtm->Name(), "Robot");
-        componentManager->Connect(tele->GetName(), "Slave", psm->Name(), "Robot");
+        componentManager->Connect(tele->GetName(), "Slave", psmName, "Robot");
         componentManager->Connect(tele->GetName(), "CLUTCH", "io", "CLUTCH");
         componentManager->Connect(tele->GetName(), "COAG", "io", "COAG");
     }
