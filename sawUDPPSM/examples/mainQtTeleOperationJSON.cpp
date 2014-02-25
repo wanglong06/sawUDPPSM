@@ -237,7 +237,9 @@ int main(int argc, char ** argv)
                               slaveKinematicFile, periodKinematics);
             console->AddArm(psm);
         } else {
-            udppsm = new mtsUDPPSM(slaveName, 1.0 * cmn_ms);
+            std::string slaveUDPIP = jsonSlave["UDP-IP"].asString();
+            short slaveUDPPort = jsonSlave["UDP-port"].asInt();
+            udppsm = new mtsUDPPSM(slaveName, 50.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
             componentManager->AddComponent(udppsm);
             console->AddArm(udppsm, mtsIntuitiveResearchKitConsole::Arm::ARM_PSM);
         }

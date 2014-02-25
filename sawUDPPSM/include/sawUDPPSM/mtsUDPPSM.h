@@ -22,6 +22,7 @@ http://www.cisst.org/cisst/license.txt.
 #ifndef _mtsUDPPSM_h
 #define _mtsUDPPSM_h
 
+#include <cisstOSAbstraction/osaSocket.h>
 #include <cisstMultiTask/mtsTaskPeriodic.h>
 #include <cisstParameterTypes/prmPositionJointSet.h>
 #include <cisstParameterTypes/prmPositionJointGet.h>
@@ -35,7 +36,8 @@ class mtsUDPPSM: public mtsTaskPeriodic
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
 
 public:
-    mtsUDPPSM(const std::string & componentName, const double periodInSeconds);
+    mtsUDPPSM(const std::string & componentName, const double periodInSeconds,
+              const std::string & ip, const unsigned int port);
     mtsUDPPSM(const mtsTaskPeriodicConstructorArg & arg);
     inline ~mtsUDPPSM() {}
 
@@ -52,8 +54,6 @@ protected:
         PSM_POSITION_CARTESIAN, /**< Go to command cartesian position */
         PSM_MANUAL /**< User manually move robot */
     };
-
-    void Init(void);
 
     /*! Get data from the PID level based on current state. */
     void GetRobotData(void);
@@ -90,6 +90,9 @@ protected:
     RobotStateType RobotState;
 
     int Counter;
+
+    osaSocket Socket;
+    bool SocketConfigured;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);

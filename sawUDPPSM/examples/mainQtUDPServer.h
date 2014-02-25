@@ -35,7 +35,7 @@ public:
     inline UDPQtSocket(void):
         mSocket(osaSocket::UDP)
     {
-        startTimer(10); // in ms
+        startTimer(1); // in ms
         RotationWidget = new vctQtWidgetRotationDoubleRead(vctQtWidgetRotationDoubleRead::OPENGL_WIDGET);
 
     }
@@ -65,8 +65,9 @@ private slots:
         char buffer[512];
         int bytesRead;
         // receive
-        bytesRead = mSocket.Receive(buffer, sizeof(buffer));
+        bytesRead = mSocket.Receive(buffer, sizeof(buffer), 0.0);
         if (bytesRead > 0) {
+            std::cerr << "." << std::flush;
             if (bytesRead == 72) {
                 vctQuatRot3 qrot;
                 double * bufferDouble = reinterpret_cast<double *>(buffer); 

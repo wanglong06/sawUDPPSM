@@ -7,13 +7,12 @@
                 "io": "sawRobotIO1394-MTML-22723.xml",
                 "pid": "sawControllersPID-MTM.xml",
                 "kinematic": "dvmtm.rob"
-		// ,
-                // "UDP-IP": "localhost",
-                // "UDP-port": 10001
 		}
             ,
             "slave": {
-                "name": "PSM2"
+                "name": "PSM2",
+                "UDP-IP": "localhost",
+                "UDP-port": 10004
             }
 	}
         ,
@@ -29,7 +28,9 @@
 	    }
             ,
             "slave": {
-                "name": "PSM1"
+                "name": "PSM1",
+                "UDP-IP": "localhost",
+                "UDP-port": 10003
             }
         }
     ]

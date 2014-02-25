@@ -30,24 +30,17 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstParameterTypes/prmEventButton.h>
 
 
-CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsUDPPSM, mtsTaskPeriodic, mtsTaskPeriodicConstructorArg);
+CMN_IMPLEMENT_SERVICES_DERIVED(mtsUDPPSM, mtsTaskPeriodic);
 
-mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSeconds):
-    mtsTaskPeriodic(componentName, periodInSeconds)
+mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSeconds,
+                     const std::string & ip, const unsigned int port):
+    mtsTaskPeriodic(componentName, periodInSeconds),
+    Socket(osaSocket::UDP),
+    SocketConfigured(false),
+    IsCartesianGoalSet(false),
+    Counter(0)
 {
-    Init();
-}
 
-mtsUDPPSM::mtsUDPPSM(const mtsTaskPeriodicConstructorArg & arg):
-    mtsTaskPeriodic(arg)
-{
-    Init();
-}
-
-void mtsUDPPSM::Init(void)
-{
-    IsCartesianGoalSet = false;
-    Counter = 0;
 
     SetState(PSM_UNINITIALIZED);
     DesiredOpenAngle = 0 * cmnPI_180;
@@ -69,6 +62,11 @@ void mtsUDPPSM::Init(void)
         // Stats
         interfaceProvided->AddCommandReadState(StateTable, StateTable.PeriodStats,
                                                "GetPeriodStatistics");
+    }
+
+    if (!ip.empty()) {
+        Socket.SetDestination(ip, port);
+        SocketConfigured = true;
     }
 }
 
@@ -103,10 +101,30 @@ void mtsUDPPSM::Run(void)
 
     RunEvent();
     ProcessQueuedCommands();
+
+    if (SocketConfigured && IsCartesianGoalSet) {
+        // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
+        // For the buttons: 0=None
+        double packet[9];
+        packet[0] = 0.0;
+        packet[1] = DesiredOpenAngle;
+        vct3 pos = CartesianGoalSet.Goal().Translation();
+        packet[2] = pos.X();
+        packet[3] = pos.Y();
+        packet[4] = pos.Z();
+        vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
+        packet[5] = qrot.W();
+        packet[6] = qrot.X();
+        packet[7] = qrot.Y();
+        packet[8] = qrot.Z();
+        Socket.Send((char *)packet, sizeof(packet));
+        IsCartesianGoalSet = false;
+    }
 }
 
 void mtsUDPPSM::Cleanup(void)
 {
+    Socket.Close();
     CMN_LOG_CLASS_INIT_VERBOSE << GetName() << ": Cleanup" << std::endl;
 }
 
@@ -178,6 +196,7 @@ void mtsUDPPSM::SetPositionCartesian(const prmPositionCartesianSet & newPosition
 void mtsUDPPSM::SetOpenAngle(const double & openAngle)
 {
     DesiredOpenAngle = openAngle;
+    IsCartesianGoalSet = true;
 }
 
 void mtsUDPPSM::SetRobotControlState(const std::string & state)
