@@ -13,13 +13,16 @@
 
 # create a list of required cisst libraries
 set (REQUIRED_CISST_LIBRARIES cisstCommon
+                              cisstCommonXML
                               cisstVector
                               cisstVectorQt
+                              cisstNumerical
                               cisstOSAbstraction
                               cisstMultiTask
                               cisstMultiTaskQt
                               cisstParameterTypes
                               cisstParameterTypesQt
+                              cisstRobot
                               cisstQt)
 
 # find cisst and make sure the required libraries have been compiled
