@@ -21,6 +21,7 @@ http://www.cisst.org/cisst/license.txt.
 #include "mainQtUDPServer.h"
 #include <string.h>
 #include <cisstCommon/cmnLogger.h>
+#include <cisstCommon/cmnCommandLineOptions.h>
 
 #include <QApplication>
 
@@ -32,14 +33,18 @@ int main(int argc, char * argv[])
     cmnLogger::SetMaskClass("osaSocket", CMN_LOG_ALLOW_ERRORS_AND_WARNINGS);
     cmnLogger::SetMaskClass("osaSocketServer", CMN_LOG_ALLOW_ERRORS_AND_WARNINGS);
 
-    unsigned short port = 10001;
-    std::string response;
+    unsigned short port = 0;
 
-    std::cout << "> Listen on port 10001? [y/n] ";
-    std::cin >> response;
-    if (response.compare("n") == 0) {
-        std::cout << "> Enter port: ";
-        std::cin >> port;
+    cmnCommandLineOptions options;
+    options.AddOptionOneValue("p", "port",
+                              "UDP Port", cmnCommandLineOptions::REQUIRED_OPTION, &port);
+
+    // check that all required options have been provided
+    std::string errorMessage;
+    if (!options.Parse(argc, argv, errorMessage)) {
+        std::cerr << "Error: " << errorMessage << std::endl;
+        options.PrintUsage(std::cerr);
+        return -1;
     }
 
     QApplication application(argc, argv);

@@ -102,23 +102,42 @@ void mtsUDPPSM::Run(void)
     RunEvent();
     ProcessQueuedCommands();
 
-    if (SocketConfigured && IsCartesianGoalSet) {
-        // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
-        // For the buttons: 0=None
-        double packet[9];
-        packet[0] = 0.0;
-        packet[1] = DesiredOpenAngle;
-        vct3 pos = CartesianGoalSet.Goal().Translation();
-        packet[2] = pos.X();
-        packet[3] = pos.Y();
-        packet[4] = pos.Z();
-        vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
-        packet[5] = qrot.W();
-        packet[6] = qrot.X();
-        packet[7] = qrot.Y();
-        packet[8] = qrot.Z();
-        Socket.Send((char *)packet, sizeof(packet));
-        IsCartesianGoalSet = false;
+    if (SocketConfigured) {
+        double packetSent[9];
+
+        // send new desired position
+        if (IsCartesianGoalSet) {
+            // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
+            // For the buttons: 0=None
+            packetSent[0] = 0.0;
+            packetSent[1] = DesiredOpenAngle;
+            vct3 pos = CartesianGoalSet.Goal().Translation();
+            packetSent[2] = pos.X();
+            packetSent[3] = pos.Y();
+            packetSent[4] = pos.Z();
+            vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
+            packetSent[5] = qrot.W();
+            packetSent[6] = qrot.X();
+            packetSent[7] = qrot.Y();
+            packetSent[8] = qrot.Z();
+            Socket.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
+            IsCartesianGoalSet = false;
+        }
+        // read position from slave
+        int bytesRead;
+        char buffer[512];
+        double * packetReceived;
+        bytesRead = Socket.Receive(buffer, sizeof(buffer), 0.0);
+        if (bytesRead > 0) {
+            if (bytesRead == sizeof(packetSent)) {
+                packetReceived = reinterpret_cast<double *>(buffer);
+                std::cerr << packetReceived[2] << std::endl;
+            } else {
+                std::cerr << "!" << std::flush;
+            }
+        } else {
+            std::cerr << "~" << std::flush;
+        }
     }
 }
 

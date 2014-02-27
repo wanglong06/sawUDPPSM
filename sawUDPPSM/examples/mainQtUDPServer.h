@@ -67,7 +67,6 @@ private slots:
         // receive
         bytesRead = mSocket.Receive(buffer, sizeof(buffer), 0.0);
         if (bytesRead > 0) {
-            std::cerr << "." << std::flush;
             if (bytesRead == 72) {
                 vctQuatRot3 qrot;
                 double * bufferDouble = reinterpret_cast<double *>(buffer); 
@@ -79,6 +78,22 @@ private slots:
             } else {
                 std::cerr << " -> ERROR: packet size should be 72, got " << bytesRead << std::endl;
             }
+
+            double packetSent[9];
+            // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
+            // For the buttons: 0=None
+            packetSent[0] = 0.0;
+            packetSent[1] = 3.14; // DesiredOpenAngle;
+            // vct3 pos = CartesianGoalSet.Goal().Translation();
+            packetSent[2] = 10.0; // pos.X();
+            packetSent[3] = 10.0; // pos.Y();
+            packetSent[4] = 10.0; // pos.Z();
+            // vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
+            packetSent[5] = 10.0; // qrot.W();
+            packetSent[6] = 10.0; // qrot.X();
+            packetSent[7] = 10.0; // qrot.Y();
+            packetSent[8] = 10.0; // qrot.Z();
+            mSocket.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
         }
     }
 };
