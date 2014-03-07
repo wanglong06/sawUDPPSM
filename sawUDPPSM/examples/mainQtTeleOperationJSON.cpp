@@ -239,6 +239,7 @@ int main(int argc, char ** argv)
         } else {
             std::string slaveUDPIP = jsonSlave["UDP-IP"].asString();
             short slaveUDPPort = jsonSlave["UDP-port"].asInt();
+            //udppsm = new mtsUDPPSM(slaveName, 50.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
             udppsm = new mtsUDPPSM(slaveName, 50.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
             componentManager->AddComponent(udppsm);
             console->AddArm(udppsm, mtsIntuitiveResearchKitConsole::Arm::ARM_PSM);
@@ -291,6 +292,12 @@ int main(int argc, char ** argv)
         componentManager->AddComponent(teleGUI);
         tabWidget->addTab(teleGUI, teleName.c_str());
         mtsTeleOperation * tele = new mtsTeleOperation(teleName, periodTeleop);
+        // Set orientation between master and slave
+        vctMatRot3 master2slave;
+        master2slave.Assign( 1.0, 0.0, 0.0,
+                             0.0, 0.0, -1.0,
+                             0.0, 1.0, 0.0);
+        tele->SetRegistrationRotation(master2slave);
         componentManager->AddComponent(tele);
         // connect teleGUI to tele
         componentManager->Connect(teleGUI->GetName(), "TeleOperation", tele->GetName(), "Setting");

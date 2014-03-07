@@ -40,8 +40,6 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     IsCartesianGoalSet(false),
     Counter(0)
 {
-
-
     SetState(PSM_UNINITIALIZED);
     DesiredOpenAngle = 0 * cmnPI_180;
 
@@ -65,7 +63,15 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     }
 
     if (!ip.empty()) {
+        /*  Long Wang:
+            Please refer to the definition in osaSocket.h
+            For a server and a client, you have to do
+            server.AssignPort(serverPort);
+            client.SetDestination(serverHost, serverPort);
+            In our case, the socket is server and client at the same time.
+        */
         Socket.SetDestination(ip, port);
+        Socket.AssignPort(port);
         SocketConfigured = true;
     }
 }
@@ -109,7 +115,7 @@ void mtsUDPPSM::Run(void)
         if (IsCartesianGoalSet) {
             // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
             // For the buttons: 0=None
-            packetSent[0] = 0.0;
+            packetSent[0] = 1; // This bit will tell PSM if this message is valid or not
             packetSent[1] = DesiredOpenAngle;
             vct3 pos = CartesianGoalSet.Goal().Translation();
             packetSent[2] = pos.X();
@@ -120,23 +126,9 @@ void mtsUDPPSM::Run(void)
             packetSent[6] = qrot.X();
             packetSent[7] = qrot.Y();
             packetSent[8] = qrot.Z();
-            Socket.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
+            //Socket.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
+            Socket.Send((char *)packetSent, sizeof(packetSent));
             IsCartesianGoalSet = false;
-        }
-        // read position from slave
-        int bytesRead;
-        char buffer[512];
-        double * packetReceived;
-        bytesRead = Socket.Receive(buffer, sizeof(buffer), 0.0);
-        if (bytesRead > 0) {
-            if (bytesRead == sizeof(packetSent)) {
-                packetReceived = reinterpret_cast<double *>(buffer);
-                std::cerr << packetReceived[2] << std::endl;
-            } else {
-                std::cerr << "!" << std::flush;
-            }
-        } else {
-            std::cerr << "~" << std::flush;
         }
     }
 }
@@ -150,9 +142,44 @@ void mtsUDPPSM::Cleanup(void)
 void mtsUDPPSM::GetRobotData(void)
 {
     if (this->RobotState >= PSM_READY) {
-        // perfect slave, does what was asked
-        CartesianCurrent.From(CartesianGoalSet.Goal());
+        // read position and orientation from slave
+        // read UDP packets
+        int LatestRead = 0;
+        int bytesRead = 1;
+        char buffer1[512];
+        char buffer2[512];
+        double * packetReceived;
+        // flush out the buffer
+        do {
+            bytesRead = Socket.Receive(buffer1, sizeof(buffer1), 0.0);
+            if (bytesRead>0){
+                memcpy(buffer2,buffer1,sizeof(buffer1));
+                LatestRead= bytesRead;
+                }
+            } while (bytesRead);
+        if (LatestRead > 0) {
+            if (LatestRead == 9 * sizeof(double)) {
+                packetReceived = reinterpret_cast<double *>(buffer2);
+                // unpack UDP packets
+                vct3 translation;
+                translation.Assign(packetReceived[2],
+                                   packetReceived[3],
+                                   packetReceived[4]);
+                vctQuatRot3 qrot;
+                qrot.W() = packetReceived[5];
+                qrot.X() = packetReceived[6];
+                qrot.Y() = packetReceived[7];
+                qrot.Z() = packetReceived[8];
+                CartesianCurrent.Translation().Assign(translation);
+                CartesianCurrent.Rotation().FromNormalized(qrot);
+            } else {
+                std::cerr << "!" << std::flush;
+            }
+        } else {
+            std::cerr << "~" << std::flush;
+        }
     } else {
+        // for state not ready
         CartesianCurrent.Assign(vctFrm4x4::Identity());
     }
     CartesianCurrentParam.Position().From(CartesianCurrent);
