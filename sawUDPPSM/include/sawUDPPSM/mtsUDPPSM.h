@@ -91,7 +91,8 @@ protected:
 
     int Counter;
 
-    osaSocket Socket;
+    osaSocket UDPsend;
+    osaSocket UDPrecv;
     bool SocketConfigured;
 };
 

@@ -35,7 +35,8 @@ CMN_IMPLEMENT_SERVICES_DERIVED(mtsUDPPSM, mtsTaskPeriodic);
 mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSeconds,
                      const std::string & ip, const unsigned int port):
     mtsTaskPeriodic(componentName, periodInSeconds),
-    Socket(osaSocket::UDP),
+    UDPsend(osaSocket::UDP),
+    UDPrecv(osaSocket::UDP),
     SocketConfigured(false),
     IsCartesianGoalSet(false),
     Counter(0)
@@ -70,8 +71,8 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
             client.SetDestination(serverHost, serverPort);
             In our case, the socket is server and client at the same time.
         */
-        Socket.SetDestination(ip, port);
-        Socket.AssignPort(port);
+        UDPsend.SetDestination(ip, port);
+        UDPrecv.AssignPort(port);
         SocketConfigured = true;
     }
 }
@@ -126,8 +127,8 @@ void mtsUDPPSM::Run(void)
             packetSent[6] = qrot.X();
             packetSent[7] = qrot.Y();
             packetSent[8] = qrot.Z();
-            //Socket.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
-            Socket.Send((char *)packetSent, sizeof(packetSent));
+            //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
+            UDPsend.Send((char *)packetSent, sizeof(packetSent));
             IsCartesianGoalSet = false;
         }
     }
@@ -135,7 +136,8 @@ void mtsUDPPSM::Run(void)
 
 void mtsUDPPSM::Cleanup(void)
 {
-    Socket.Close();
+    UDPsend.Close();
+    UDPrecv.Close();
     CMN_LOG_CLASS_INIT_VERBOSE << GetName() << ": Cleanup" << std::endl;
 }
 
@@ -151,7 +153,7 @@ void mtsUDPPSM::GetRobotData(void)
         double * packetReceived;
         // flush out the buffer
         do {
-            bytesRead = Socket.Receive(buffer1, sizeof(buffer1), 0.0);
+            bytesRead = UDPrecv.Receive(buffer1, sizeof(buffer1), 0.0);
             if (bytesRead>0){
                 memcpy(buffer2,buffer1,sizeof(buffer1));
                 LatestRead= bytesRead;
