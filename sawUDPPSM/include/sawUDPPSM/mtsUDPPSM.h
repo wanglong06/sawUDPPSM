@@ -30,6 +30,8 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstParameterTypes/prmPositionCartesianSet.h>
 #include <cisstRobot/robManipulator.h>
 #include <cisstRobot/robQuintic.h>
+// By Long Wang
+#include <cisstOSAbstraction/osaTimeServer.h>
 
 class mtsUDPPSM: public mtsTaskPeriodic
 {
@@ -94,6 +96,12 @@ protected:
     osaSocket UDPsend;
     osaSocket UDPrecv;
     bool SocketConfigured;
+
+    //By Long Wang
+    double CommunicationDelay;
+    bool UdpEchoRequested;
+    bool UdpEchoSent;
+    bool UdpEchoReceived;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);
