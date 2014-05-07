@@ -126,18 +126,21 @@ void mtsUDPPSM::Run(void)
             double message_type =1;
             if (UdpEchoRequested)
             {
+                const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
+                double time = timeServer.GetRelativeTime();
                 if(UdpEchoSent)
                 {
                     message_type = message_type;
-                    packetSent[9] = 0;
                 }//If sent, just wait for receiving the echo
                 else{
                         message_type = message_type + 2;
-                        const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
-                        double time = timeServer.GetRelativeTime();
-                        packetSent[9] = time;
                         UdpEchoSent=true;
                     } // If not sent, send it.
+                packetSent[9] = time;
+            }
+            else
+            {
+                packetSent[9] = 0;
             }
             packetSent[0] = message_type;
             packetSent[1] = DesiredOpenAngle;
