@@ -37,6 +37,10 @@ http://www.cisst.org/cisst/license.txt.
 #include <sawControllers/mtsTeleOperation.h>
 #include <sawControllers/mtsTeleOperationQtWidget.h>
 
+#include <cisstMultiTask/mtsCollectorFactory.h>
+#include <cisstMultiTask/mtsCollectorQtFactory.h>
+#include <cisstMultiTask/mtsCollectorQtWidget.h>
+
 #include <sawUDPPSM/mtsUDPPSM.h>
 
 #include <QTabWidget>
@@ -76,6 +80,7 @@ int main(int argc, char ** argv)
     int firewirePort = 0;
     std::string gcmip = "-1";
     std::string jsonMainConfigFile;
+    std::string jsonCollectionConfigFile;
     typedef std::map<std::string, std::string> ConfigFilesType;
     ConfigFilesType configFiles;
     std::string masterName, slaveName;
@@ -91,6 +96,10 @@ int main(int argc, char ** argv)
                               "global component manager IP address",
                               cmnCommandLineOptions::OPTIONAL_OPTION, &gcmip);
 
+    options.AddOptionOneValue("c", "collection-config",
+                              "json configuration file for data collection",
+                              cmnCommandLineOptions::OPTIONAL_OPTION, &jsonCollectionConfigFile);
+
     // check that all required options have been provided
     std::string errorMessage;
     if (!options.Parse(argc, argv, errorMessage)) {
@@ -98,6 +107,9 @@ int main(int argc, char ** argv)
         options.PrintUsage(std::cerr);
         return -1;
     }
+    std::string arguments;
+    options.PrintParsedArguments(arguments);
+    std::cout << "Options provided:" << std::endl << arguments << std::endl;
 
     // make sure the json config file exists and can be parsed
     fileExists("JSON configuration", jsonMainConfigFile);
@@ -129,7 +141,7 @@ int main(int argc, char ** argv)
     }
 
     // create a Qt application and tab to hold all widgets
-    mtsQtApplication *qtAppTask = new mtsQtApplication("QtApplication", argc, argv);
+    mtsQtApplication * qtAppTask = new mtsQtApplication("QtApplication", argc, argv);
     qtAppTask->Configure();
     componentManager->AddComponent(qtAppTask);
 
@@ -147,6 +159,19 @@ int main(int argc, char ** argv)
 
     // IO is shared accross components
     mtsRobotIO1394 * io = new mtsRobotIO1394("io", periodIO, firewirePort);
+
+    // find name of button event used to detect if operator is present
+    std::string operatorPresentComponent = jsonConfig["operator-present"]["component"].asString();
+    std::string operatorPresentInterface = jsonConfig["operator-present"]["interface"].asString();
+    //set defaults
+    if (operatorPresentComponent == "") {
+        operatorPresentComponent = "io";
+    }
+    if (operatorPresentInterface == "") {
+        operatorPresentInterface = "COAG";
+    }
+    std::cout << "Using \"" << operatorPresentComponent << "::" << operatorPresentInterface
+              << "\" to detect if operator is present" << std::endl;
 
     // setup io defined in the json configuration file
     const Json::Value pairs = jsonConfig["pairs"];
@@ -239,8 +264,7 @@ int main(int argc, char ** argv)
         } else {
             std::string slaveUDPIP = jsonSlave["UDP-IP"].asString();
             short slaveUDPPort = jsonSlave["UDP-port"].asInt();
-            //udppsm = new mtsUDPPSM(slaveName, 50.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
-            udppsm = new mtsUDPPSM(slaveName, 50.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
+            udppsm = new mtsUDPPSM(slaveName, 10.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
             componentManager->AddComponent(udppsm);
             console->AddArm(udppsm, mtsIntuitiveResearchKitConsole::Arm::ARM_PSM);
         }
@@ -292,7 +316,7 @@ int main(int argc, char ** argv)
         componentManager->AddComponent(teleGUI);
         tabWidget->addTab(teleGUI, teleName.c_str());
         mtsTeleOperation * tele = new mtsTeleOperation(teleName, periodTeleop);
-        // Set orientation between master and slave
+        // Default orientation between master and slave
         vctMatRot3 master2slave;
         master2slave.Assign( 1.0, 0.0, 0.0,
                              0.0, 0.0, -1.0,
@@ -304,8 +328,28 @@ int main(int argc, char ** argv)
 
         componentManager->Connect(tele->GetName(), "Master", mtm->Name(), "Robot");
         componentManager->Connect(tele->GetName(), "Slave", psmName, "Robot");
-        componentManager->Connect(tele->GetName(), "CLUTCH", "io", "CLUTCH");
-        componentManager->Connect(tele->GetName(), "COAG", "io", "COAG");
+        componentManager->Connect(tele->GetName(), "Clutch", "io", "CLUTCH");
+        componentManager->Connect(tele->GetName(), "OperatorPresent", operatorPresentComponent, operatorPresentInterface);
+    }
+
+    // configure data collection if needed
+    if (options.IsSet("collection-config")) {
+        // make sure the json config file exists
+        fileExists("JSON data collection configuration", jsonCollectionConfigFile);
+
+        mtsCollectorFactory * collectorFactory = new mtsCollectorFactory("collectors");
+        collectorFactory->Configure(jsonCollectionConfigFile);
+        componentManager->AddComponent(collectorFactory);
+        collectorFactory->Connect();
+
+        mtsCollectorQtWidget * collectorQtWidget = new mtsCollectorQtWidget();
+        tabWidget->addTab(collectorQtWidget, "Collection");
+
+        mtsCollectorQtFactory * collectorQtFactory = new mtsCollectorQtFactory("collectorsQt");
+        collectorQtFactory->SetFactory("collectors");
+        componentManager->AddComponent(collectorQtFactory);
+        collectorQtFactory->Connect();
+        collectorQtFactory->ConnectToWidget(collectorQtWidget);
     }
 
     // show all widgets

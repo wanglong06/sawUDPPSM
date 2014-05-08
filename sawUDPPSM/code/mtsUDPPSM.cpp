@@ -128,14 +128,13 @@ void mtsUDPPSM::Run(void)
             {
                 const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
                 double time = timeServer.GetRelativeTime();
-                if(UdpEchoSent)
-                {
+                if (UdpEchoSent) {
                     message_type = message_type;
-                }//If sent, just wait for receiving the echo
-                else{
-                        message_type = message_type + 2;
-                        UdpEchoSent=true;
-                    } // If not sent, send it.
+                } //If sent, just wait for receiving the echo
+                else {
+                   message_type = message_type + 2;
+                   UdpEchoSent = true;
+                } // If not sent, send it.
                 packetSent[9] = time;
             }
             else
