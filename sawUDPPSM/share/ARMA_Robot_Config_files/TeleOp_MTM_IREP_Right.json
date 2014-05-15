@@ -1,0 +1,19 @@
+{
+    "pairs":
+    [
+       {
+            "master": {
+                "name": "MTMR",
+                "io": "sawRobotIO1394-MTMR-28056.xml",
+                "pid": "sawControllersPID-MTM.xml",
+                "kinematic": "dvmtm.rob"
+	    }
+            ,
+            "slave": {
+                "name": "IREPR",
+                "UDP-IP": "192.168.1.201",
+                "UDP-port": 10005
+            }
+        }
+    ]
+}
