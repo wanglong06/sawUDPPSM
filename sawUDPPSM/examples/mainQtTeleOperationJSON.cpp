@@ -66,8 +66,8 @@ int main(int argc, char ** argv)
     const double periodIO = 0.5 * cmn_ms;
     const double periodKinematics = 2.0 * cmn_ms;
     const double periodTeleop = 2.0 * cmn_ms;
-    const double periodUDP = 20.0 * cmn_ms;
- 
+    //const double periodUDP = 20.0 * cmn_ms;
+    const double periodUDP = 1.0 * cmn_ms;
     // log configuration
     cmnLogger::SetMask(CMN_LOG_ALLOW_ALL);
     cmnLogger::SetMaskDefaultLog(CMN_LOG_ALLOW_ALL);
@@ -211,6 +211,7 @@ int main(int argc, char ** argv)
 
     // setup arms defined in the json configuration file
     for (unsigned int index = 0; index < pairs.size(); ++index) {
+        // set up master
         Json::Value jsonMaster = pairs[index]["master"];
         std::string masterName =  jsonMaster["name"].asString();
         std::string masterPIDFile = jsonMaster["pid"].asString();
@@ -244,11 +245,12 @@ int main(int argc, char ** argv)
                 exit(-1);
             }
         }
-
+        // set up slave
         Json::Value jsonSlave = pairs[index]["slave"];
         std::string slaveName =  jsonSlave["name"].asString();
         std::string slavePIDFile = jsonSlave["pid"].asString();
         std::string slaveKinematicFile = jsonSlave["kinematic"].asString();
+        Json::Value jsonMaster2SlaveRotMat = jsonSlave["master2slave"];
 
         mtsIntuitiveResearchKitConsole::Arm * psm;
         mtsUDPPSM * udppsm;
@@ -267,6 +269,23 @@ int main(int argc, char ** argv)
             udppsm = new mtsUDPPSM(slaveName, 10.0 * cmn_ms, slaveUDPIP, slaveUDPPort);
             componentManager->AddComponent(udppsm);
             console->AddArm(udppsm, mtsIntuitiveResearchKitConsole::Arm::ARM_PSM);
+        }
+        // set Rotation matrix for orientation between master and slave according in JSON file
+        vctMatRot3 master2slave;
+        double Master2SlaveRotMatVec[9];
+        if(!jsonMaster2SlaveRotMat.empty()){
+            for ( int idx = 0; idx < jsonMaster2SlaveRotMat.size(); ++idx )
+            {
+                Master2SlaveRotMatVec[idx] = jsonMaster2SlaveRotMat[idx].asDouble();
+            }
+                master2slave.Assign( Master2SlaveRotMatVec[0], Master2SlaveRotMatVec[1], Master2SlaveRotMatVec[2],
+                                 Master2SlaveRotMatVec[3], Master2SlaveRotMatVec[4], Master2SlaveRotMatVec[5],
+                                 Master2SlaveRotMatVec[6], Master2SlaveRotMatVec[7], Master2SlaveRotMatVec[8]);
+        }else{
+                // The default transformation is for IREP
+                master2slave.Assign( 1.0, 0.0, 0.0,
+                             0.0, 0.0, -1.0,
+                             0.0, 1.0, 0.0);
         }
 
         // PID Master GUI
@@ -316,11 +335,7 @@ int main(int argc, char ** argv)
         componentManager->AddComponent(teleGUI);
         tabWidget->addTab(teleGUI, teleName.c_str());
         mtsTeleOperation * tele = new mtsTeleOperation(teleName, periodTeleop);
-        // Default orientation between master and slave
-        vctMatRot3 master2slave;
-        master2slave.Assign( 1.0, 0.0, 0.0,
-                             0.0, 0.0, -1.0,
-                             0.0, 1.0, 0.0);
+        // set registration rotation between master and slave
         tele->SetRegistrationRotation(master2slave);
         componentManager->AddComponent(tele);
         // connect teleGUI to tele

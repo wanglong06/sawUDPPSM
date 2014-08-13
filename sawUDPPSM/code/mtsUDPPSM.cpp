@@ -187,6 +187,7 @@ void mtsUDPPSM::GetRobotData(void)
             } while (bytesRead);
         if (LatestRead > 0) {
             if (LatestRead == 10 * sizeof(double)) {
+                //std::cerr << "*" << std::flush;
                 packetReceived = reinterpret_cast<double *>(buffer2);
                 // unpack UDP packets
                 int message_type;

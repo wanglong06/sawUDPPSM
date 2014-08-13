@@ -14,3 +14,9 @@ sudo iptables -t mangle -X
 sudo iptables -P INPUT ACCEPT
 sudo iptables -P FORWARD ACCEPT
 sudo iptables -P OUTPUT ACCEPT
+
+# to CMU 
+sudo iptables -t nat -A PREROUTING -p udp -s 192.168.1.167 --dport 10020 --j DNAT --to 128.2.178.3:10020
+# from CMU
+#sudo iptables -t nat -A PREROUTING -p udp -s 128.2.178.3 --dport 10020 --j DNAT --to 192.168.1.167:10020
+sudo iptables -t nat -A POSTROUTING -j MASQUERADE
