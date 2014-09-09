@@ -71,8 +71,15 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
             client.SetDestination(serverHost, serverPort);
             In our case, the socket is server and client at the same time.
         */
-        UDPsend.SetDestination(ip, port);
-        UDPrecv.AssignPort(port);
+
+        // ZC: Hack
+        // Destination: 10005
+        // Listen to 10006
+        short portListen = 10006;
+        short portSend = 10005;
+
+        UDPsend.SetDestination(ip, portSend);
+        UDPrecv.AssignPort(portListen);
         SocketConfigured = true;
         UdpEchoRequested = true;
     }
@@ -89,6 +96,9 @@ void mtsUDPPSM::Startup(void)
 
 void mtsUDPPSM::Run(void)
 {
+    // ZC: HACK
+//    SetState(PSM_READY);
+
     Counter++;
 
     ProcessQueuedEvents();
@@ -158,6 +168,8 @@ void mtsUDPPSM::Run(void)
             IsCartesianGoalSet = false;
         }
     }
+
+//    std::cout << "hello world" << std::endl;
 }
 
 void mtsUDPPSM::Cleanup(void)
@@ -170,6 +182,7 @@ void mtsUDPPSM::Cleanup(void)
 void mtsUDPPSM::GetRobotData(void)
 {
     if (this->RobotState >= PSM_READY) {
+
         // read position and orientation from slave
         // read UDP packets
         int LatestRead = 0;
@@ -177,14 +190,15 @@ void mtsUDPPSM::GetRobotData(void)
         char buffer1[512];
         char buffer2[512];
         double * packetReceived;
+
         // flush out the buffer
         do {
             bytesRead = UDPrecv.Receive(buffer1, sizeof(buffer1), 0.0);
             if (bytesRead>0){
                 memcpy(buffer2,buffer1,sizeof(buffer1));
                 LatestRead= bytesRead;
-                }
-            } while (bytesRead);
+            }
+        } while (bytesRead);
         if (LatestRead > 0) {
             if (LatestRead == 10 * sizeof(double)) {
                 //std::cerr << "*" << std::flush;
@@ -215,8 +229,14 @@ void mtsUDPPSM::GetRobotData(void)
                 qrot.Z() = packetReceived[8];
                 CartesianCurrent.Translation().Assign(translation);
                 CartesianCurrent.Rotation().FromNormalized(qrot);
+
+                if (Counter%20 == 0) {
+                    std::cout << "CartesianCurrent = " << std::endl
+                              << CartesianCurrent << std::endl << std::endl;
+                }
+
             } else {
-                std::cerr << "!" << std::flush;
+                std::cerr << "! LatestRead = " << LatestRead << std::endl << std::flush;
             }
         } else {
             std::cerr << "~" << std::flush;

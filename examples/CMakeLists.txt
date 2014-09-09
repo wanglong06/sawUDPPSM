@@ -77,7 +77,7 @@ if (cisst_FOUND_AS_REQUIRED)
         cisst_target_link_libraries (sawUDPPSMQtTeleOperationJSON ${REQUIRED_CISST_LIBRARIES})
 
         # main program used to configure TeleOperation
-	qt_wrap_cpp (sawUDPPSMQtUDPServer sawUDPPSMQtUDPServer_QT_WRAP mainQtUDPServer.h)
+        qt_wrap_cpp (sawUDPPSMQtUDPServer sawUDPPSMQtUDPServer_QT_WRAP mainQtUDPServer.h)
         add_executable (sawUDPPSMQtUDPServer
                         mainQtUDPServer.cpp
                         ${sawUDPPSMQtUDPServer_QT_WRAP})
