@@ -75,8 +75,10 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
         // ZC: Hack
         // Destination: 10005
         // Listen to 10006
-        short portListen = 10006;
-        short portSend = 10005;
+        //short portListen = 10006;
+        //short portSend = 10005;
+        short portSend = port;
+        short portListen = port+1;// This is because if for local test use, same port cannot be used for sending and receiving at the same time.
 
         UDPsend.SetDestination(ip, portSend);
         UDPrecv.AssignPort(portListen);
@@ -121,7 +123,7 @@ void mtsUDPPSM::Run(void)
     ProcessQueuedCommands();
 
     if (SocketConfigured) {
-        double packetSent[11];
+        double packetSent[17];
 
         // send new desired position
         if (IsCartesianGoalSet) {
@@ -145,11 +147,11 @@ void mtsUDPPSM::Run(void)
                    message_type = message_type + 2;
                    UdpEchoSent = true;
                 } // If not sent, send it.
-                packetSent[9] = time;
+                packetSent[16] = time;
             }
             else
             {
-                packetSent[9] = 0;
+                packetSent[16] = 0;
             }
             packetSent[0] = message_type;
             packetSent[1] = DesiredOpenAngle;
@@ -162,7 +164,14 @@ void mtsUDPPSM::Run(void)
             packetSent[6] = qrot.X();
             packetSent[7] = qrot.Y();
             packetSent[8] = qrot.Z();
-            packetSent[10] = CommunicationDelay;
+            packetSent[9] = qrot.Z();
+            packetSent[10] = 0; //  Fx
+            packetSent[11] = 0; //  Fy
+            packetSent[12] = 0; //  Fz
+            packetSent[13] = 0; //  Mx
+            packetSent[14] = 0; //  My
+            packetSent[15] = 0; //  Mz
+            packetSent[17] = CommunicationDelay;
             //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
             UDPsend.Send((char *)packetSent, sizeof(packetSent));
             IsCartesianGoalSet = false;
@@ -200,7 +209,7 @@ void mtsUDPPSM::GetRobotData(void)
             }
         } while (bytesRead);
         if (LatestRead > 0) {
-            if (LatestRead == 10 * sizeof(double)) {
+            if (LatestRead == 136) {
                 //std::cerr << "*" << std::flush;
                 packetReceived = reinterpret_cast<double *>(buffer2);
                 // unpack UDP packets
@@ -210,7 +219,7 @@ void mtsUDPPSM::GetRobotData(void)
                     {
                         const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
                         double time = timeServer.GetRelativeTime();
-                        CommunicationDelay =time - packetReceived[9];
+                        CommunicationDelay =time - packetReceived[15];
                         UdpEchoSent=false; // reset the sent flag
                         UdpEchoReceived=true;
                     }
@@ -227,16 +236,25 @@ void mtsUDPPSM::GetRobotData(void)
                 qrot.X() = packetReceived[6];
                 qrot.Y() = packetReceived[7];
                 qrot.Z() = packetReceived[8];
+                vct3 slave_sensed_force;
+                slave_sensed_force.Assign(  packetReceived[9],
+                                            packetReceived[10],
+                                            packetReceived[11]);
+                vct3 slave_sensed_torque;
+                slave_sensed_torque.Assign( packetReceived[12],
+                                            packetReceived[13],
+                                            packetReceived[14]);
                 CartesianCurrent.Translation().Assign(translation);
                 CartesianCurrent.Rotation().FromNormalized(qrot);
-
+                /*Here some actions needed for the use of force and torque*/
                 if (Counter%20 == 0) {
                     std::cout << "CartesianCurrent = " << std::endl
                               << CartesianCurrent << std::endl << std::endl;
                 }
 
             } else {
-                std::cerr << "! LatestRead = " << LatestRead << std::endl << std::flush;
+                std::cerr << "! LatestReading = " << LatestRead << std::endl
+                          <<"! Counter = " << Counter <<std::endl << std::flush;
             }
         } else {
             std::cerr << "~" << std::flush;
