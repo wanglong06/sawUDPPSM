@@ -24,6 +24,7 @@ http://www.cisst.org/cisst/license.txt.
 
 #include <cisstOSAbstraction/osaSocket.h>
 #include <cisstMultiTask/mtsTaskPeriodic.h>
+#include <cisstMultiTask/mtsVector.h>
 #include <cisstParameterTypes/prmPositionJointSet.h>
 #include <cisstParameterTypes/prmPositionJointGet.h>
 #include <cisstParameterTypes/prmPositionCartesianGet.h>
@@ -86,6 +87,7 @@ protected:
     prmPositionCartesianGet CartesianCurrentParam;
     vctFrm4x4 CartesianCurrent;
     vctFrm4x4 CartesianPrevious;
+    mtsDoubleVec SlaveForceTorque;
 
     vctFrm4x4 CartesianPositionFrm;
     double DesiredOpenAngle;

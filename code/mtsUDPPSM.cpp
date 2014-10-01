@@ -35,6 +35,7 @@ CMN_IMPLEMENT_SERVICES_DERIVED(mtsUDPPSM, mtsTaskPeriodic);
 mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSeconds,
                      const std::string & ip, const unsigned int port):
     mtsTaskPeriodic(componentName, periodInSeconds),
+    SlaveForceTorque(6),
     UDPsend(osaSocket::UDP),
     UDPrecv(osaSocket::UDP),
     SocketConfigured(false),
@@ -45,10 +46,12 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     DesiredOpenAngle = 0 * cmnPI_180;
 
     this->StateTable.AddData(CartesianCurrentParam, "CartesianPosition");
+    this->StateTable.AddData(SlaveForceTorque, "SlaveForceTorque");
 
     mtsInterfaceProvided * interfaceProvided = AddInterfaceProvided("Robot");
     if (interfaceProvided) {
         interfaceProvided->AddCommandReadState(this->StateTable, CartesianCurrentParam, "GetPositionCartesian");
+        interfaceProvided->AddCommandReadState(this->StateTable, SlaveForceTorque, "GetSlaveForceTorque");
         interfaceProvided->AddCommandWrite(&mtsUDPPSM::SetPositionCartesian, this, "SetPositionCartesian");
         interfaceProvided->AddCommandWrite(&mtsUDPPSM::SetOpenAngle, this, "SetOpenAngle");
 
@@ -244,6 +247,17 @@ void mtsUDPPSM::GetRobotData(void)
                 slave_sensed_torque.Assign( packetReceived[12],
                                             packetReceived[13],
                                             packetReceived[14]);
+                SlaveForceTorque.SetSize(6);
+                std::copy(slave_sensed_force.begin(), slave_sensed_force.end(), SlaveForceTorque.begin());
+                std::copy(slave_sensed_torque.begin(), slave_sensed_torque.end(), SlaveForceTorque.begin()+3);
+
+//                SlaveForceTorque[0] = slave_sensed_force[0];
+//                SlaveForceTorque[1] = slave_sensed_force[1];
+//                SlaveForceTorque[2] = slave_sensed_force[2];
+//                SlaveForceTorque[3] = slave_sensed_torque[0];
+//                SlaveForceTorque[4] = slave_sensed_torque[1];
+//                SlaveForceTorque[5] = slave_sensed_torque[2];
+
                 CartesianCurrent.Translation().Assign(translation);
                 CartesianCurrent.Rotation().FromNormalized(qrot);
                 /*Here some actions needed for the use of force and torque*/
