@@ -47,13 +47,15 @@ if (cisst_FOUND_AS_REQUIRED)
                          ${sawIntuitiveResearchKit_INCLUDE_DIR}
                          ${sawUDPPSM_INCLUDE_DIR}
                          ${sawControllers_INCLUDE_DIR}
-                         ${sawTextToSpeech_INCLUDE_DIR})
+                         ${sawTextToSpeech_INCLUDE_DIR}
+                         ${sawNRIExperiment_INCLUDE_DIR})
                        
     link_directories (${sawRobotIO1394_LIBRARY_DIR}
                       ${sawIntuitiveResearchKit_LIBRARY_DIR}
                       ${sawUDPPSM_LIBRARY_DIR}
                       ${sawControllers_LIBRARY_DIR}
-                      ${sawTextToSpeech_LIBRARY_DIR})
+                      ${sawTextToSpeech_LIBRARY_DIR}
+                      ${sawNRIExperiment_LIBRARY_DIR})
 
     # examples using Qt
     if (CISST_HAS_QT)
@@ -67,9 +69,10 @@ if (cisst_FOUND_AS_REQUIRED)
 
         # link against non cisst libraries and cisst components
         target_link_libraries (sawUDPPSMQtTeleOperationJSON
-                               ${sawRobotIO1394_LIBRARIES}
-                               ${sawIntuitiveResearchKit_LIBRARIES}
                                ${sawUDPPSM_LIBRARIES}
+                               ${sawNRIExperiment_LIBRARIES}
+                               ${sawIntuitiveResearchKit_LIBRARIES}
+                               ${sawRobotIO1394_LIBRARIES}
                                ${sawControllers_LIBRARIES}
                                ${sawTextToSpeech_LIBRARIES})
 

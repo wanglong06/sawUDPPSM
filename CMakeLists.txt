@@ -15,4 +15,4 @@
 project (sawUDPPSM)
 
 add_subdirectory (code)
-add_subdirectory (examples)
+#add_subdirectory (examples)

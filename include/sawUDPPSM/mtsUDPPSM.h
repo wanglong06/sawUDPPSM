@@ -34,6 +34,8 @@ http://www.cisst.org/cisst/license.txt.
 // By Long Wang
 #include <cisstOSAbstraction/osaTimeServer.h>
 
+#include <sawNRIExperiment/mtsNRIResearchKitOptimizer.h>
+
 class mtsUDPPSM: public mtsTaskPeriodic
 {
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
