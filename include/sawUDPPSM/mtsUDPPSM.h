@@ -34,7 +34,7 @@ http://www.cisst.org/cisst/license.txt.
 // By Long Wang
 #include <cisstOSAbstraction/osaTimeServer.h>
 
-#include <sawNRIExperiment/mtsNRIResearchKitOptimizer.h>
+#include <sawUDPPSM/mtsUDPOptimizer.h>
 
 class mtsUDPPSM: public mtsTaskPeriodic
 {
@@ -50,7 +50,7 @@ public:
     void Startup(void);
     void Run(void);
     void Cleanup(void);
-
+    void InitOptimizer(void);
 protected:
 
     enum RobotStateType {
@@ -106,6 +106,9 @@ protected:
     bool UdpEchoRequested;
     bool UdpEchoSent;
     bool UdpEchoReceived;
+
+private:
+    mtsUDPOptimizer *UDPOptimizer;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);

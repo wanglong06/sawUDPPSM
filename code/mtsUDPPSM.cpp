@@ -48,6 +48,8 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     this->StateTable.AddData(CartesianCurrentParam, "CartesianPosition");
     this->StateTable.AddData(SlaveForceTorque, "SlaveForceTorque");
 
+//    UDPOptimizer = new mtsUDPPSM(6, &this->Manipulator);
+
     mtsInterfaceProvided * interfaceProvided = AddInterfaceProvided("Robot");
     if (interfaceProvided) {
         interfaceProvided->AddCommandReadState(this->StateTable, CartesianCurrentParam, "GetPositionCartesian");
@@ -97,6 +99,13 @@ void mtsUDPPSM::Configure(const std::string & filename)
 void mtsUDPPSM::Startup(void)
 {
     this->SetState(PSM_UNINITIALIZED);
+}
+
+void mtsUDPPSM::InitOptimizer(void)
+{
+    // Initialize the optimizer
+    CMN_LOG_CLASS_RUN_DEBUG << "InitOptimizer: called" << std::endl;
+
 }
 
 void mtsUDPPSM::Run(void)
@@ -316,6 +325,16 @@ void mtsUDPPSM::RunPositionCartesian(void)
     //! \todo: should prevent user to go to close to RCM!
 
     if (IsCartesianGoalSet == true) {
+
+        UDPOptimizer->UpdateParams(this->GetPeriodicity(),
+                                   CartesianCurrent,
+                                   vctFrm4x4(CartesianGoalSet.Goal()));
+
+        vctDoubleVec dx;
+        if(UDPOptimizer->Solve(dx)) {
+
+        }
+
         // compute desired slave position
         CartesianPositionFrm.From(CartesianGoalSet.Goal());
 

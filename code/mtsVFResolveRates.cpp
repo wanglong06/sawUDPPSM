@@ -28,9 +28,6 @@ void mtsVFResolveRates::FillInTableauRefs(const CONTROLLERMODE mode, const doubl
     CurrentKinematics  = Kinematics.at(0);
     DesiredKinematics  = Kinematics.at(1);
 
-    CurrentSensorState = Sensors.at(0);
-    DesiredSensorState = Sensors.at(1);
-
     // Current Frame
     vctFrm4x4 CurrentFrame;
     CurrentFrame.FromNormalized(CurrentKinematics->Frame);
@@ -43,6 +40,5 @@ void mtsVFResolveRates::FillInTableauRefs(const CONTROLLERMODE mode, const doubl
     ObjectiveMatrixRef.Zeros();
     ObjectiveMatrixRef.Diagonal().SetAll(1.0);
 
-    ConvertRefs(mode, TickTime);
     Counter++;
 }

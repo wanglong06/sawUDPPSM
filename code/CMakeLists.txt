@@ -61,14 +61,14 @@ if (cisst_FOUND)
 
     set (HEADER_FILES
          ${sawUDPPSM_HEADER_DIR}/mtsUDPPSM.h
-         #${sawUDPPSM_HEADER_DIR}/mtsUDPOptimizer.h
-         #${sawUDPPSM_HEADER_DIR}/mtsVFResolveRates.h
+         ${sawUDPPSM_HEADER_DIR}/mtsUDPOptimizer.h
+         ${sawUDPPSM_HEADER_DIR}/mtsVFResolveRates.h
         )
 
     set (SOURCE_FILES
          mtsUDPPSM.cpp
-         #mtsUDPOptimizer.cpp
-         #mtsVFResolveRates.cpp
+         mtsUDPOptimizer.cpp
+         mtsVFResolveRates.cpp
         )
 
     add_library (sawUDPPSM ${HEADER_FILES} ${SOURCE_FILES})
