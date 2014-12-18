@@ -130,6 +130,10 @@ void mtsUDPPSM::Run(void)
 
         // send new desired position
         if (IsCartesianGoalSet) {
+
+            // try to print somethign here as well
+
+
             // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
             // Message Type value table:
             /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
@@ -150,11 +154,11 @@ void mtsUDPPSM::Run(void)
                    message_type = message_type + 2;
                    UdpEchoSent = true;
                 } // If not sent, send it.
-                packetSent[16] = time;
+                packetSent[15] = time;
             }
             else
             {
-                packetSent[16] = 0;
+                packetSent[15] = 0;
             }
             packetSent[0] = message_type;
             packetSent[1] = DesiredOpenAngle;
@@ -167,17 +171,39 @@ void mtsUDPPSM::Run(void)
             packetSent[6] = qrot.X();
             packetSent[7] = qrot.Y();
             packetSent[8] = qrot.Z();
-            packetSent[9] = qrot.Z();
-            packetSent[10] = 0; //  Fx
-            packetSent[11] = 0; //  Fy
-            packetSent[12] = 0; //  Fz
-            packetSent[13] = 0; //  Mx
-            packetSent[14] = 0; //  My
-            packetSent[15] = 0; //  Mz
-            packetSent[17] = CommunicationDelay;
+            packetSent[9] = 0; //  Fx
+            packetSent[10] = 0; //  Fy
+            packetSent[11] = 0; //  Fz
+            packetSent[12] = 0; //  Mx
+            packetSent[13] = 0; //  My
+            packetSent[14] = 0; //  Mz
+            packetSent[16] = CommunicationDelay;
             //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
             UDPsend.Send((char *)packetSent, sizeof(packetSent));
             IsCartesianGoalSet = false;
+        }
+        else
+        {
+            // try to print something here
+            packetSent[0] = 0;
+            packetSent[1] = 0;
+            packetSent[2] = 0; // Pos.x
+            packetSent[3] = 0; // Pos.y
+            packetSent[4] = 0; // Pos.z
+            packetSent[5] = 1; // quat.w
+            packetSent[6] = 0; // quat.x
+            packetSent[7] = 0; // quat.y
+            packetSent[8] = 0; // quat.z
+            packetSent[9] = 0; //  Fx
+            packetSent[10] = 0; //  Fy
+            packetSent[11] = 0; //  Fz
+            packetSent[12] = 0; //  Mx
+            packetSent[13] = 0; //  My
+            packetSent[14] = 0; //  Mz
+            packetSent[15] = 0; //  Time
+            packetSent[16] = CommunicationDelay;
+            //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
+            UDPsend.Send((char *)packetSent, sizeof(packetSent));
         }
     }
 
