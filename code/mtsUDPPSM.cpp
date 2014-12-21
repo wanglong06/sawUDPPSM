@@ -66,6 +66,11 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
                                                "GetPeriodStatistics");
     }
 
+    // Initializing packet to be zeroes
+    for (int i = 0; i < PACKETSIZE; ++i) {
+        PackageSent[i] = 0;
+    }
+
     if (!ip.empty()) {
         /*  Long Wang:
             Please refer to the definition in osaSocket.h
@@ -92,6 +97,7 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
 
 void mtsUDPPSM::Configure(const std::string & filename)
 {
+
 }
 
 void mtsUDPPSM::Startup(void)
@@ -102,7 +108,7 @@ void mtsUDPPSM::Startup(void)
 void mtsUDPPSM::Run(void)
 {
     // ZC: HACK
-//    SetState(PSM_READY);
+    //    SetState(PSM_READY);
 
     Counter++;
 
@@ -124,90 +130,6 @@ void mtsUDPPSM::Run(void)
 
     RunEvent();
     ProcessQueuedCommands();
-
-    if (SocketConfigured) {
-        double packetSent[17];
-
-        // send new desired position
-        if (IsCartesianGoalSet) {
-
-            // try to print somethign here as well
-
-
-            // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
-            // Message Type value table:
-            /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
-                If H=0, this message is invalid
-                If H=1, this message is valid, i.e the desired pose will be accepted by PSM
-                If G=0, this message does not request time stamping
-                If G=1, this message does request time stamping
-            */
-            double message_type =1;
-            if (UdpEchoRequested)
-            {
-                const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
-                double time = timeServer.GetRelativeTime();
-                if (UdpEchoSent) {
-                    message_type = message_type;
-                } //If sent, just wait for receiving the echo
-                else {
-                   message_type = message_type + 2;
-                   UdpEchoSent = true;
-                } // If not sent, send it.
-                packetSent[15] = time;
-            }
-            else
-            {
-                packetSent[15] = 0;
-            }
-            packetSent[0] = message_type;
-            packetSent[1] = DesiredOpenAngle;
-            vct3 pos = CartesianGoalSet.Goal().Translation();
-            packetSent[2] = pos.X();
-            packetSent[3] = pos.Y();
-            packetSent[4] = pos.Z();
-            vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
-            packetSent[5] = qrot.W();
-            packetSent[6] = qrot.X();
-            packetSent[7] = qrot.Y();
-            packetSent[8] = qrot.Z();
-            packetSent[9] = 0; //  Fx
-            packetSent[10] = 0; //  Fy
-            packetSent[11] = 0; //  Fz
-            packetSent[12] = 0; //  Mx
-            packetSent[13] = 0; //  My
-            packetSent[14] = 0; //  Mz
-            packetSent[16] = CommunicationDelay;
-            //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
-            UDPsend.Send((char *)packetSent, sizeof(packetSent));
-            IsCartesianGoalSet = false;
-        }
-        else
-        {
-            // try to print something here
-            packetSent[0] = 0;
-            packetSent[1] = 0;
-            packetSent[2] = 0; // Pos.x
-            packetSent[3] = 0; // Pos.y
-            packetSent[4] = 0; // Pos.z
-            packetSent[5] = 1; // quat.w
-            packetSent[6] = 0; // quat.x
-            packetSent[7] = 0; // quat.y
-            packetSent[8] = 0; // quat.z
-            packetSent[9] = 0; //  Fx
-            packetSent[10] = 0; //  Fy
-            packetSent[11] = 0; //  Fz
-            packetSent[12] = 0; //  Mx
-            packetSent[13] = 0; //  My
-            packetSent[14] = 0; //  Mz
-            packetSent[15] = 0; //  Time
-            packetSent[16] = CommunicationDelay;
-            //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
-            UDPsend.Send((char *)packetSent, sizeof(packetSent));
-        }
-    }
-
-//    std::cout << "hello world" << std::endl;
 }
 
 void mtsUDPPSM::Cleanup(void)
@@ -245,17 +167,17 @@ void mtsUDPPSM::GetRobotData(void)
                 int message_type;
                 message_type = int (packetReceived[0]);
                 if(message_type&=2) // if the 2nd bit is true, meaning this is an echo packet
-                    {
-                        const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
-                        double time = timeServer.GetRelativeTime();
-                        CommunicationDelay =time - packetReceived[15];
-                        UdpEchoSent=false; // reset the sent flag
-                        UdpEchoReceived=true;
-                    }
+                {
+                    const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
+                    double time = timeServer.GetRelativeTime();
+                    CommunicationDelay =time - packetReceived[15];
+                    UdpEchoSent=false; // reset the sent flag
+                    UdpEchoReceived=true;
+                }
                 else
-                    {
-                        UdpEchoReceived=false;
-                    }
+                {
+                    UdpEchoReceived=false;
+                }
                 vct3 translation;
                 translation.Assign(packetReceived[2],
                                    packetReceived[3],
@@ -277,12 +199,12 @@ void mtsUDPPSM::GetRobotData(void)
                 std::copy(slave_sensed_force.begin(), slave_sensed_force.end(), SlaveForceTorque.begin());
                 std::copy(slave_sensed_torque.begin(), slave_sensed_torque.end(), SlaveForceTorque.begin()+3);
 
-//                SlaveForceTorque[0] = slave_sensed_force[0];
-//                SlaveForceTorque[1] = slave_sensed_force[1];
-//                SlaveForceTorque[2] = slave_sensed_force[2];
-//                SlaveForceTorque[3] = slave_sensed_torque[0];
-//                SlaveForceTorque[4] = slave_sensed_torque[1];
-//                SlaveForceTorque[5] = slave_sensed_torque[2];
+                //                SlaveForceTorque[0] = slave_sensed_force[0];
+                //                SlaveForceTorque[1] = slave_sensed_force[1];
+                //                SlaveForceTorque[2] = slave_sensed_force[2];
+                //                SlaveForceTorque[3] = slave_sensed_torque[0];
+                //                SlaveForceTorque[4] = slave_sensed_torque[1];
+                //                SlaveForceTorque[5] = slave_sensed_torque[2];
 
                 CartesianCurrent.Translation().Assign(translation);
                 CartesianCurrent.Rotation().FromNormalized(qrot);
@@ -334,7 +256,7 @@ void mtsUDPPSM::SetState(const RobotStateType & newState)
         break;
     default:
         break;
-    }   
+    }
 }
 
 void mtsUDPPSM::RunPositionCartesian(void)
@@ -342,11 +264,69 @@ void mtsUDPPSM::RunPositionCartesian(void)
     //! \todo: should prevent user to go to close to RCM!
 
     if (IsCartesianGoalSet == true) {
-        // compute desired slave position
-        CartesianPositionFrm.From(CartesianGoalSet.Goal());
 
         // reset flag
         IsCartesianGoalSet = false;
+
+        // @TODO PC : Have to put optimizer here.
+
+        // compute desired slave position
+        CartesianPositionFrm.From(CartesianGoalSet.Goal());
+
+        // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
+        // Message Type value table:
+        /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
+                    If H=0, this message is invalid
+                    If H=1, this message is valid, i.e the desired pose will be accepted by PSM
+                    If G=0, this message does not request time stamping
+                    If G=1, this message does request time stamping
+                */
+        double message_type =1;
+        if (UdpEchoRequested) {
+            const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
+            double time = timeServer.GetRelativeTime();
+            if (UdpEchoSent) {
+                message_type = message_type;
+            } //If sent, just wait for receiving the echo
+            else {
+                message_type = message_type + 2;
+                UdpEchoSent = true;
+            } // If not sent, send it.
+            PackageSent[15] = time;
+        } else {
+            PackageSent[15] = 0;
+        }
+
+        PackageSent[0] = message_type;
+        PackageSent[1] = DesiredOpenAngle;
+        vct3 pos = CartesianPositionFrm.Translation();
+        PackageSent[2] = pos.X();
+        PackageSent[3] = pos.Y();
+        PackageSent[4] = pos.Z();
+        vctQuatRot3 qrot(CartesianPositionFrm.Rotation());
+        PackageSent[5] = qrot.W();
+        PackageSent[6] = qrot.X();
+        PackageSent[7] = qrot.Y();
+        PackageSent[8] = qrot.Z();
+    } else {
+        // try to print something here
+        PackageSent[0] = 0;
+        PackageSent[1] = 0;
+        PackageSent[2] = 0; // Pos.x
+        PackageSent[3] = 0; // Pos.y
+        PackageSent[4] = 0; // Pos.z
+        PackageSent[5] = 1; // quat.w
+        PackageSent[6] = 0; // quat.x
+        PackageSent[7] = 0; // quat.y
+        PackageSent[8] = 0; // quat.z
+        PackageSent[15] = 0; //  Time
+    }
+    PackageSent[16] = CommunicationDelay;
+
+    if(SocketConfigured) {
+        UDPsend.Send((char *)PackageSent, sizeof(PackageSent));
+    } else {
+        CMN_LOG_CLASS_RUN_ERROR << "RunPositionCartesian: Socket Not Configured." << std::endl;
     }
 }
 

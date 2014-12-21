@@ -34,6 +34,8 @@ http://www.cisst.org/cisst/license.txt.
 // By Long Wang
 #include <cisstOSAbstraction/osaTimeServer.h>
 
+#define PACKETSIZE 17
+
 class mtsUDPPSM: public mtsTaskPeriodic
 {
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
@@ -104,6 +106,8 @@ protected:
     bool UdpEchoRequested;
     bool UdpEchoSent;
     bool UdpEchoReceived;
+    double PackageSent[PACKETSIZE];
+
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);
