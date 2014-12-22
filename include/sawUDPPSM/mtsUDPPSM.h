@@ -35,6 +35,7 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstOSAbstraction/osaTimeServer.h>
 
 #include <sawUDPPSM/mtsUDPOptimizer.h>
+#define PACKETSIZE 17
 
 class mtsUDPPSM: public mtsTaskPeriodic
 {
@@ -109,6 +110,7 @@ protected:
 
 private:
     mtsUDPOptimizer *UDPOptimizer;
+    double PackageSent[PACKETSIZE];
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);

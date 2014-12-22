@@ -94,6 +94,7 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
 
 void mtsUDPPSM::Configure(const std::string & filename)
 {
+
 }
 
 void mtsUDPPSM::Startup(void)
@@ -228,17 +229,17 @@ void mtsUDPPSM::GetRobotData(void)
                 int message_type;
                 message_type = int (packetReceived[0]);
                 if(message_type&=2) // if the 2nd bit is true, meaning this is an echo packet
-                    {
-                        const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
-                        double time = timeServer.GetRelativeTime();
-                        CommunicationDelay =time - packetReceived[15];
-                        UdpEchoSent=false; // reset the sent flag
-                        UdpEchoReceived=true;
-                    }
+                {
+                    const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
+                    double time = timeServer.GetRelativeTime();
+                    CommunicationDelay =time - packetReceived[15];
+                    UdpEchoSent=false; // reset the sent flag
+                    UdpEchoReceived=true;
+                }
                 else
-                    {
-                        UdpEchoReceived=false;
-                    }
+                {
+                    UdpEchoReceived=false;
+                }
                 vct3 translation;
                 translation.Assign(packetReceived[2],
                                    packetReceived[3],
@@ -317,7 +318,7 @@ void mtsUDPPSM::SetState(const RobotStateType & newState)
         break;
     default:
         break;
-    }   
+    }
 }
 
 void mtsUDPPSM::RunPositionCartesian(void)
@@ -326,6 +327,10 @@ void mtsUDPPSM::RunPositionCartesian(void)
 
     if (IsCartesianGoalSet == true) {
 
+        // reset flag
+        IsCartesianGoalSet = false;
+
+        // @TODO PC : Have to put optimizer here.
         UDPOptimizer->UpdateParams(this->GetPeriodicity(),
                                    CartesianCurrent,
                                    vctFrm4x4(CartesianGoalSet.Goal()));
@@ -338,8 +343,60 @@ void mtsUDPPSM::RunPositionCartesian(void)
         // compute desired slave position
         CartesianPositionFrm.From(CartesianGoalSet.Goal());
 
-        // reset flag
-        IsCartesianGoalSet = false;
+        // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
+        // Message Type value table:
+        /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
+                    If H=0, this message is invalid
+                    If H=1, this message is valid, i.e the desired pose will be accepted by PSM
+                    If G=0, this message does not request time stamping
+                    If G=1, this message does request time stamping
+                */
+        double message_type =1;
+        if (UdpEchoRequested) {
+            const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
+            double time = timeServer.GetRelativeTime();
+            if (UdpEchoSent) {
+                message_type = message_type;
+            } //If sent, just wait for receiving the echo
+            else {
+                message_type = message_type + 2;
+                UdpEchoSent = true;
+            } // If not sent, send it.
+            PackageSent[15] = time;
+        } else {
+            PackageSent[15] = 0;
+        }
+
+        PackageSent[0] = message_type;
+        PackageSent[1] = DesiredOpenAngle;
+        vct3 pos = CartesianPositionFrm.Translation();
+        PackageSent[2] = pos.X();
+        PackageSent[3] = pos.Y();
+        PackageSent[4] = pos.Z();
+        vctQuatRot3 qrot(CartesianPositionFrm.Rotation());
+        PackageSent[5] = qrot.W();
+        PackageSent[6] = qrot.X();
+        PackageSent[7] = qrot.Y();
+        PackageSent[8] = qrot.Z();
+    } else {
+        // try to print something here
+        PackageSent[0] = 0;
+        PackageSent[1] = 0;
+        PackageSent[2] = 0; // Pos.x
+        PackageSent[3] = 0; // Pos.y
+        PackageSent[4] = 0; // Pos.z
+        PackageSent[5] = 1; // quat.w
+        PackageSent[6] = 0; // quat.x
+        PackageSent[7] = 0; // quat.y
+        PackageSent[8] = 0; // quat.z
+        PackageSent[15] = 0; //  Time
+    }
+    PackageSent[16] = CommunicationDelay;
+
+    if(SocketConfigured) {
+        UDPsend.Send((char *)PackageSent, sizeof(PackageSent));
+    } else {
+        CMN_LOG_CLASS_RUN_ERROR << "RunPositionCartesian: Socket Not Configured." << std::endl;
     }
 }
 
