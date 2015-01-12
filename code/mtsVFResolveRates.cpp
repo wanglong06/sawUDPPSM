@@ -43,7 +43,7 @@ void mtsVFResolveRates::FillInTableauRefs(const CONTROLLERMODE mode, const doubl
     vctDoubleVec ep;
     ep.Assign(DesiredFrame.Translation() - CurrentFrame.Translation());
 
-    // Known variables
+    // Known variables - Have to be sent over from mtsUDPPSM
     vctDoubleVec vMin(3,0.0);
     vMin = ep.Normalized();
     double epsilon_p, alpha, lambda, vMax;

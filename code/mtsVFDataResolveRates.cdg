@@ -1,0 +1,49 @@
+inline-header {
+#include <sawConstraintController/mtsVFDataBase.h>
+// Always include last!
+#include <sawConstraintController/sawConstraintControllerExport.h>
+}
+
+class {
+
+    name mtsVFDataResolveRates;
+    attribute CISST_EXPORT;
+
+    // All VF data objects are subclasses of mtsVFDataBase
+    base-class {
+      type mtsVFDataBase;
+    }
+
+    member {
+        name vMin;
+        type vct3;
+        visibility public;
+    }
+
+    member {
+        name vMax;
+        type vct3;
+        visibility public;
+    }
+
+    member {
+        name epsilon_p;
+        type double;
+        default 1.0;
+        visibility public;
+    }
+
+    member {
+        name alpha;
+        type double;
+        default 1.0;
+        visibility public;
+    }
+
+    member {
+        name lambda;
+        type double;
+        default 1.0;
+        visibility public;
+    }
+}

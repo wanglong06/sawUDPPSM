@@ -56,6 +56,12 @@ if (cisst_FOUND)
     set (sawUDPPSM_LIBRARY_DIR "${LIBRARY_OUTPUT_PATH}")
     set (sawUDPPSM_LIBRARIES sawUDPPSM)
 
+    # create data type using the data generator
+    cisst_data_generator (sawUDPPSM
+                          "${CISST_BINARY_DIR}/include" # where to save the file
+                          "sawUDPPSM/"                  # sub directory for include
+                          mtsVFDataResolveRates.cdg)
+
     include_directories (${sawUDPPSM_INCLUDE_DIR})
     set (sawUDPPSM_HEADER_DIR "${sawUDPPSM_INCLUDE_DIR}/sawUDPPSM")
 
@@ -71,7 +77,11 @@ if (cisst_FOUND)
          mtsVFResolveRates.cpp
         )
 
-    add_library (sawUDPPSM ${HEADER_FILES} ${SOURCE_FILES})
+    add_library (sawUDPPSM
+                ${HEADER_FILES} ${SOURCE_FILES}
+                ${sawUDPPSM_CISST_DG_SRCS}
+                ${sawUDPPSM_CISST_DG_HDRS})
+
     cisst_target_link_libraries (sawUDPPSM ${REQUIRED_CISST_LIBRARIES})
     set_property (TARGET sawUDPPSM PROPERTY FOLDER "sawUDPPSM")
 

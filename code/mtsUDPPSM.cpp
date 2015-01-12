@@ -48,7 +48,7 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     this->StateTable.AddData(CartesianCurrentParam, "CartesianPosition");
     this->StateTable.AddData(SlaveForceTorque, "SlaveForceTorque");
 
-//    UDPOptimizer = new mtsUDPPSM(6, &this->Manipulator);
+    UDPOptimizer = new mtsUDPOptimizer(6);
 
     mtsInterfaceProvided * interfaceProvided = AddInterfaceProvided("Robot");
     if (interfaceProvided) {
@@ -337,7 +337,16 @@ void mtsUDPPSM::RunPositionCartesian(void)
 
         vctDoubleVec dx;
         if(UDPOptimizer->Solve(dx)) {
+            CartesianPositionFrm.Translation().Assign(vct3(dx[0], dx[1], dx[2]));
+            vctDoubleVec rotVector(3);
+            rotVector.Assign(dx,3,0,3);
+            double angle = rotVector.Norm();
+            vct3 axis = rotVector.Normalized();
+            vctAxAnRot3 rotMat;
+            rotMat.Angle() = angle;
+            rotMat.Axis() = axis;
 
+            CartesianPositionFrm.Rotation().FromNormalized(rotMat);
         }
 
         // compute desired slave position
@@ -346,11 +355,11 @@ void mtsUDPPSM::RunPositionCartesian(void)
         // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
         // Message Type value table:
         /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
-                    If H=0, this message is invalid
-                    If H=1, this message is valid, i.e the desired pose will be accepted by PSM
-                    If G=0, this message does not request time stamping
-                    If G=1, this message does request time stamping
-                */
+            If H=0, this message is invalid
+            If H=1, this message is valid, i.e the desired pose will be accepted by PSM
+            If G=0, this message does not request time stamping
+            If G=1, this message does request time stamping
+        */
         double message_type =1;
         if (UdpEchoRequested) {
             const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
@@ -398,6 +407,11 @@ void mtsUDPPSM::RunPositionCartesian(void)
     } else {
         CMN_LOG_CLASS_RUN_ERROR << "RunPositionCartesian: Socket Not Configured." << std::endl;
     }
+}
+
+void mtsUDPPSM::SendUDPPacket()
+{
+
 }
 
 void mtsUDPPSM::SetPositionCartesian(const prmPositionCartesianSet & newPosition)

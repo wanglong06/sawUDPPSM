@@ -1,8 +1,8 @@
 #include <sawUDPPSM/mtsUDPOptimizer.h>
 #include <sawUDPPSM/mtsVFResolveRates.h>
 
-mtsUDPOptimizer::mtsUDPOptimizer(const size_t numOfJoints, robManipulator *manip) :
-    BaseType(numOfJoints, manip)
+mtsUDPOptimizer::mtsUDPOptimizer(const size_t numOfJoints) :
+    BaseType(numOfJoints, 0)
 {
 
 }
@@ -16,9 +16,20 @@ void mtsUDPOptimizer::InitializeRRVF(const size_t rows,
 {
 
     // @todo: Initialize the kinematics here
+    // Set the Kinematics
+    CurrentSlaveKinematics.Name = currentKinName.data();
+    DesiredSlaveKinematics.Name = desiredKinName.data();
+    CurrentSlaveKinematics.JointState = &CurrentJointState;
+
+    FollowData.Name = vfName.data();
+    FollowData.ObjectiveRows = rows;
+    FollowData.KinNames.clear();
+    FollowData.KinNames.push_back(currentKinName);
+    FollowData.KinNames.push_back(desiredKinName);
 
     AddVFResolveRates(FollowData);
-    CurrentSlaveKinematics.Jacobian.SetSize(rows, NumOfJoints, VCT_COL_MAJOR);
+
+//    CurrentSlaveKinematics.Jacobian.SetSize(rows, NumOfJoints, VCT_COL_MAJOR);
 }
 
 void mtsUDPOptimizer::AddVFResolveRates(const mtsVFDataBase &vf)

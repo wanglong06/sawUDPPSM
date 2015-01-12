@@ -74,6 +74,7 @@ protected:
     void SetPositionCartesian(const prmPositionCartesianSet & newPosition);
     void SetOpenAngle(const double & openAngle);
     void SetRobotControlState(const std::string & state);
+    void SendUDPPacket();
 
     // Functions for events
     struct {
