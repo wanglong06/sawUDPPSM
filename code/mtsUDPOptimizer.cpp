@@ -44,9 +44,3 @@ void mtsUDPOptimizer::AddVFResolveRates(const mtsVFDataBase &vf)
     }
 }
 
-void mtsUDPOptimizer::UpdateParams(const double tickTime,
-                                   const vctFrm4x4 cartesianCurrent,
-                                   const vctFrm4x4 cartesianDesired)
-{
-
-}

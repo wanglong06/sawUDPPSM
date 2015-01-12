@@ -19,10 +19,6 @@ public:
                         const std::string &currentSenName);
 
     void AddVFResolveRates(const mtsVFDataBase & vf);
-
-    void UpdateParams(const double tickTime,
-                      const vctFrm4x4 cartesianCurrent,
-                      const vctFrm4x4 cartesianDesired);
 };
 
 #endif // MTSUDPOPTIMIZER_H
