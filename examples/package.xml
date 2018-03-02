@@ -1,0 +1,33 @@
+<package>
+  <name>saw_udp_psm_examples</name>
+  <version>1.1.1</version>
+  <description>
+  sawUDPPSM Examples
+  </description>
+  <maintainer email="pchalas1@jhu.edu">Preetham Chalasani</maintainer>
+  <license>cisst</license>
+  <url>https://git.lcsr.jhu.edu/nri-csa/experiment</url>
+
+  <build_depend>cisst_netlib</build_depend>
+  <build_depend>cisst</build_depend>
+  
+  <build_depend>saw_controllers</build_depend>
+  <build_depend>saw_constraint_controller</build_depend>
+  <build_depend>saw_robot_io_1394</build_depend>
+  <build_depend>saw_intuitive_research_kit</build_depend>
+  <build_depend>saw_udp_psm</build_depend>
+
+  <run_depend>cisst_netlib</run_depend>
+  <run_depend>cisst</run_depend>
+
+  <run_depend>saw_controllers</run_depend>
+  <run_depend>saw_constraint_controller</run_depend>
+  <run_depend>saw_robot_io_1394</run_depend>
+  <run_depend>saw_intuitive_research_kit</run_depend>
+  <run_depend>saw_udp_psm</run_depend>
+
+  <export>
+    <build_type>catkin</build_type>
+  </export>
+
+</package>

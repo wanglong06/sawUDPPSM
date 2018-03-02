@@ -11,6 +11,10 @@
 #
 # --- end cisst license ---
 
+project(sawUDPPSMExamples)
+
+cmake_minimum_REQUIRED(VERSION 2.8)
+
 # create a list of required cisst libraries
 set (REQUIRED_CISST_LIBRARIES cisstCommon
                               cisstCommonXML
@@ -33,10 +37,16 @@ if (cisst_FOUND_AS_REQUIRED)
   # load cisst configuration
   include (${CISST_USE_FILE})
 
+  cisst_is_catkin_build (sawUDPPSMExamples_IS_CATKIN_BUILT)
+  if (sawUDPPSMExamples_IS_CATKIN_BUILT)
+    set (EXECUTABLE_OUTPUT_PATH "${CATKIN_DEVEL_PREFIX}/bin")
+  endif ()
+
   # sawRobotIO1394 has been compiled within cisst, we should find it automatically
   cisst_find_saw_component (sawRobotIO1394 REQUIRED)
   cisst_find_saw_component (sawIntuitiveResearchKit REQUIRED)
   cisst_find_saw_component (sawUDPPSM REQUIRED)
+  cisst_find_saw_component (sawConstraintController REQUIRED)
   cisst_find_saw_component (sawControllers REQUIRED)
   cisst_find_saw_component (sawTextToSpeech REQUIRED)
 
@@ -45,17 +55,18 @@ if (cisst_FOUND_AS_REQUIRED)
     # sawRobotIO1394 configuration
     include_directories (${sawRobotIO1394_INCLUDE_DIR}
                          ${sawIntuitiveResearchKit_INCLUDE_DIR}
+                         ${sawUDPPSM_BINARY_DIR}
                          ${sawUDPPSM_INCLUDE_DIR}
                          ${sawControllers_INCLUDE_DIR}
-                         ${sawTextToSpeech_INCLUDE_DIR}
-                         ${sawNRIExperiment_INCLUDE_DIR})
+                         ${sawConstraintController_INCLUDE_DIR}
+                         ${sawTextToSpeech_INCLUDE_DIR})
                        
     link_directories (${sawRobotIO1394_LIBRARY_DIR}
                       ${sawIntuitiveResearchKit_LIBRARY_DIR}
                       ${sawUDPPSM_LIBRARY_DIR}
                       ${sawControllers_LIBRARY_DIR}
-                      ${sawTextToSpeech_LIBRARY_DIR}
-                      ${sawNRIExperiment_LIBRARY_DIR})
+                      ${sawConstraintController_LIBRARY_DIR}
+                      ${sawTextToSpeech_LIBRARY_DIR})
 
     # examples using Qt
     if (CISST_HAS_QT)
@@ -69,11 +80,11 @@ if (cisst_FOUND_AS_REQUIRED)
 
         # link against non cisst libraries and cisst components
         target_link_libraries (sawUDPPSMQtTeleOperationJSON
-                               ${sawUDPPSM_LIBRARIES}
-                               ${sawNRIExperiment_LIBRARIES}
-                               ${sawIntuitiveResearchKit_LIBRARIES}
                                ${sawRobotIO1394_LIBRARIES}
+                               ${sawIntuitiveResearchKit_LIBRARIES}
+                               ${sawUDPPSM_LIBRARIES}
                                ${sawControllers_LIBRARIES}
+                               ${sawConstraintController_LIBRARIES}
                                ${sawTextToSpeech_LIBRARIES})
 
         # link against cisst libraries (and dependencies)
@@ -84,7 +95,7 @@ if (cisst_FOUND_AS_REQUIRED)
         add_executable (sawUDPPSMQtUDPServer
                         mainQtUDPServer.cpp
                         ${sawUDPPSMQtUDPServer_QT_WRAP})
-        set_property (TARGET sawUDPPSMQtUDPServer PROPERTY FOLDER "sawUDPPSM")
+        # set_property (TARGET sawUDPPSMQtUDPServer PROPERTY FOLDER "sawUDPPSM")
 
         # link against cisst libraries (and dependencies)
         cisst_target_link_libraries (sawUDPPSMQtUDPServer ${REQUIRED_CISST_LIBRARIES})

@@ -31,11 +31,11 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstParameterTypes/prmPositionCartesianSet.h>
 #include <cisstRobot/robManipulator.h>
 #include <cisstRobot/robQuintic.h>
+#include <cisstVector/vctQuaternion.h>
 // By Long Wang
 #include <cisstOSAbstraction/osaTimeServer.h>
 
-#include <sawUDPPSM/mtsUDPOptimizer.h>
-#define PACKETSIZE 17
+#define PACKETSIZE 22
 
 class mtsUDPPSM: public mtsTaskPeriodic
 {
@@ -47,11 +47,11 @@ public:
     mtsUDPPSM(const mtsTaskPeriodicConstructorArg & arg);
     inline ~mtsUDPPSM() {}
 
-    void Configure(const std::string & filename);
+    void Configure(const std::string & filename){};
     void Startup(void);
     void Run(void);
     void Cleanup(void);
-    void InitOptimizer(void);
+
 protected:
 
     enum RobotStateType {
@@ -74,12 +74,14 @@ protected:
     void SetPositionCartesian(const prmPositionCartesianSet & newPosition);
     void SetOpenAngle(const double & openAngle);
     void SetRobotControlState(const std::string & state);
-    void SendUDPPacket();
 
     // Functions for events
     struct {
-        mtsFunctionWrite RobotStatusMsg;
-        mtsFunctionWrite RobotErrorMsg;
+        mtsFunctionWrite Status;
+        mtsFunctionWrite Warning;
+        mtsFunctionWrite Error;
+        mtsFunctionWrite RobotState;
+
         mtsFunctionWrite ManipClutch;
         mtsFunctionWrite SUJClutch;
     } EventTriggers;
@@ -97,8 +99,6 @@ protected:
     double DesiredOpenAngle;
     RobotStateType RobotState;
 
-    int Counter;
-
     osaSocket UDPsend;
     osaSocket UDPrecv;
     bool SocketConfigured;
@@ -108,10 +108,10 @@ protected:
     bool UdpEchoRequested;
     bool UdpEchoSent;
     bool UdpEchoReceived;
-
-private:
-    mtsUDPOptimizer *UDPOptimizer;
     double PackageSent[PACKETSIZE];
+
+    int Counter;
+
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsUDPPSM);

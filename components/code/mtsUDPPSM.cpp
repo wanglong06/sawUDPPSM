@@ -35,11 +35,11 @@ CMN_IMPLEMENT_SERVICES_DERIVED(mtsUDPPSM, mtsTaskPeriodic);
 mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSeconds,
                      const std::string & ip, const unsigned int port):
     mtsTaskPeriodic(componentName, periodInSeconds),
+    IsCartesianGoalSet(false),
     SlaveForceTorque(6),
     UDPsend(osaSocket::UDP),
     UDPrecv(osaSocket::UDP),
     SocketConfigured(false),
-    IsCartesianGoalSet(false),
     Counter(0)
 {
     SetState(PSM_UNINITIALIZED);
@@ -47,8 +47,6 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
 
     this->StateTable.AddData(CartesianCurrentParam, "CartesianPosition");
     this->StateTable.AddData(SlaveForceTorque, "SlaveForceTorque");
-
-    UDPOptimizer = new mtsUDPOptimizer(6);
 
     mtsInterfaceProvided * interfaceProvided = AddInterfaceProvided("Robot");
     if (interfaceProvided) {
@@ -59,13 +57,22 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
 
         interfaceProvided->AddCommandWrite(&mtsUDPPSM::SetRobotControlState,
                                            this, "SetRobotControlState", std::string(""));
-        interfaceProvided->AddEventWrite(EventTriggers.RobotStatusMsg, "RobotStatusMsg", std::string(""));
-        interfaceProvided->AddEventWrite(EventTriggers.RobotErrorMsg, "RobotErrorMsg", std::string(""));
-        interfaceProvided->AddEventWrite(EventTriggers.ManipClutch, "ManipClutchBtn", prmEventButton());
-        interfaceProvided->AddEventWrite(EventTriggers.SUJClutch, "SUJClutchBtn", prmEventButton());
+
+        interfaceProvided->AddEventWrite(EventTriggers.Status, "Status", std::string(""));
+        interfaceProvided->AddEventWrite(EventTriggers.Warning, "Warning", std::string(""));
+        interfaceProvided->AddEventWrite(EventTriggers.Error, "Error", std::string(""));
+        interfaceProvided->AddEventWrite(EventTriggers.RobotState, "RobotState", std::string(""));
+
+        interfaceProvided->AddEventWrite(EventTriggers.ManipClutch, "ManipClutch", prmEventButton());
+        interfaceProvided->AddEventWrite(EventTriggers.SUJClutch, "SUJClutch", prmEventButton());
         // Stats
         interfaceProvided->AddCommandReadState(StateTable, StateTable.PeriodStats,
                                                "GetPeriodStatistics");
+    }
+
+    // Initializing packet to be zeroes
+    for (int i = 0; i < PACKETSIZE; ++i) {
+        PackageSent[i] = 0;
     }
 
     if (!ip.empty()) {
@@ -83,7 +90,7 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
         //short portListen = 10006;
         //short portSend = 10005;
         short portSend = port;
-        short portListen = port+1;// This is because if for local test use, same port cannot be used for sending and receiving at the same time.
+        short portListen = port;// This is because if for local test use, same port cannot be used for sending and receiving at the same time.
 
         UDPsend.SetDestination(ip, portSend);
         UDPrecv.AssignPort(portListen);
@@ -92,27 +99,15 @@ mtsUDPPSM::mtsUDPPSM(const std::string & componentName, const double periodInSec
     }
 }
 
-void mtsUDPPSM::Configure(const std::string & filename)
-{
-
-}
-
 void mtsUDPPSM::Startup(void)
 {
     this->SetState(PSM_UNINITIALIZED);
 }
 
-void mtsUDPPSM::InitOptimizer(void)
-{
-    // Initialize the optimizer
-    CMN_LOG_CLASS_RUN_DEBUG << "InitOptimizer: called" << std::endl;
-
-}
-
 void mtsUDPPSM::Run(void)
 {
     // ZC: HACK
-//    SetState(PSM_READY);
+    //    SetState(PSM_READY);
 
     Counter++;
 
@@ -134,64 +129,6 @@ void mtsUDPPSM::Run(void)
 
     RunEvent();
     ProcessQueuedCommands();
-
-    if (SocketConfigured) {
-        double packetSent[17];
-
-        // send new desired position
-        if (IsCartesianGoalSet) {
-            // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
-            // Message Type value table:
-            /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
-                If H=0, this message is invalid
-                If H=1, this message is valid, i.e the desired pose will be accepted by PSM
-                If G=0, this message does not request time stamping
-                If G=1, this message does request time stamping
-            */
-            double message_type =1;
-            if (UdpEchoRequested)
-            {
-                const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
-                double time = timeServer.GetRelativeTime();
-                if (UdpEchoSent) {
-                    message_type = message_type;
-                } //If sent, just wait for receiving the echo
-                else {
-                   message_type = message_type + 2;
-                   UdpEchoSent = true;
-                } // If not sent, send it.
-                packetSent[16] = time;
-            }
-            else
-            {
-                packetSent[16] = 0;
-            }
-            packetSent[0] = message_type;
-            packetSent[1] = DesiredOpenAngle;
-            vct3 pos = CartesianGoalSet.Goal().Translation();
-            packetSent[2] = pos.X();
-            packetSent[3] = pos.Y();
-            packetSent[4] = pos.Z();
-            vctQuatRot3 qrot(CartesianGoalSet.Goal().Rotation());
-            packetSent[5] = qrot.W();
-            packetSent[6] = qrot.X();
-            packetSent[7] = qrot.Y();
-            packetSent[8] = qrot.Z();
-            packetSent[9] = qrot.Z();
-            packetSent[10] = 0; //  Fx
-            packetSent[11] = 0; //  Fy
-            packetSent[12] = 0; //  Fz
-            packetSent[13] = 0; //  Mx
-            packetSent[14] = 0; //  My
-            packetSent[15] = 0; //  Mz
-            packetSent[17] = CommunicationDelay;
-            //UDPsend.Send(reinterpret_cast<char *>(packetSent), sizeof(packetSent));
-            UDPsend.Send((char *)packetSent, sizeof(packetSent));
-            IsCartesianGoalSet = false;
-        }
-    }
-
-//    std::cout << "hello world" << std::endl;
 }
 
 void mtsUDPPSM::Cleanup(void)
@@ -203,92 +140,85 @@ void mtsUDPPSM::Cleanup(void)
 
 void mtsUDPPSM::GetRobotData(void)
 {
+    int bytesRead;
+    char buffer[512];
+    double * packetReceived;
+
     if (this->RobotState >= PSM_READY) {
+        bytesRead = UDPrecv.Receive(buffer, sizeof(buffer), 10*cmn_s);
+        if(bytesRead > 0) {
+            if(bytesRead == 21*8) {
+                packetReceived = reinterpret_cast<double *>(buffer);
 
-        // read position and orientation from slave
-        // read UDP packets
-        int LatestRead = 0;
-        int bytesRead = 1;
-        char buffer1[512];
-        char buffer2[512];
-        double * packetReceived;
-
-        // flush out the buffer
-        do {
-            bytesRead = UDPrecv.Receive(buffer1, sizeof(buffer1), 0.0);
-            if (bytesRead>0){
-                memcpy(buffer2,buffer1,sizeof(buffer1));
-                LatestRead= bytesRead;
-            }
-        } while (bytesRead);
-        if (LatestRead > 0) {
-            if (LatestRead == 136) {
-                //std::cerr << "*" << std::flush;
-                packetReceived = reinterpret_cast<double *>(buffer2);
                 // unpack UDP packets
                 int message_type;
                 message_type = int (packetReceived[0]);
-                if(message_type&=2) // if the 2nd bit is true, meaning this is an echo packet
-                {
+
+                // if the 2nd bit is true, meaning this is an echo packet
+                if(message_type&=2) {
                     const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
                     double time = timeServer.GetRelativeTime();
-                    CommunicationDelay =time - packetReceived[15];
+                    CommunicationDelay = time - packetReceived[20];
                     UdpEchoSent=false; // reset the sent flag
                     UdpEchoReceived=true;
-                }
-                else
-                {
+                } else {
                     UdpEchoReceived=false;
                 }
+
                 vct3 translation;
                 translation.Assign(packetReceived[2],
                                    packetReceived[3],
                                    packetReceived[4]);
-                vctQuatRot3 qrot;
-                qrot.W() = packetReceived[5];
-                qrot.X() = packetReceived[6];
-                qrot.Y() = packetReceived[7];
-                qrot.Z() = packetReceived[8];
+                vctMatRot3 rotataion;
+                rotataion(0,0) = packetReceived[5];
+                rotataion(1,0) = packetReceived[6];
+                rotataion(2,0) = packetReceived[7];
+                rotataion(0,1) = packetReceived[8];
+                rotataion(1,1) = packetReceived[9];
+                rotataion(2,1) = packetReceived[10];
+                rotataion(0,2) = packetReceived[11];
+                rotataion(1,2) = packetReceived[12];
+                rotataion(2,2) = packetReceived[13];
                 vct3 slave_sensed_force;
-                slave_sensed_force.Assign(  packetReceived[9],
-                                            packetReceived[10],
-                                            packetReceived[11]);
+                slave_sensed_force.Assign(  packetReceived[14],
+                                            packetReceived[15],
+                                            packetReceived[16]);
                 vct3 slave_sensed_torque;
-                slave_sensed_torque.Assign( packetReceived[12],
-                                            packetReceived[13],
-                                            packetReceived[14]);
+                slave_sensed_torque.Assign( packetReceived[17],
+                                            packetReceived[18],
+                                            packetReceived[19]);
                 SlaveForceTorque.SetSize(6);
                 std::copy(slave_sensed_force.begin(), slave_sensed_force.end(), SlaveForceTorque.begin());
                 std::copy(slave_sensed_torque.begin(), slave_sensed_torque.end(), SlaveForceTorque.begin()+3);
 
-//                SlaveForceTorque[0] = slave_sensed_force[0];
-//                SlaveForceTorque[1] = slave_sensed_force[1];
-//                SlaveForceTorque[2] = slave_sensed_force[2];
-//                SlaveForceTorque[3] = slave_sensed_torque[0];
-//                SlaveForceTorque[4] = slave_sensed_torque[1];
-//                SlaveForceTorque[5] = slave_sensed_torque[2];
-
                 CartesianCurrent.Translation().Assign(translation);
-                CartesianCurrent.Rotation().FromNormalized(qrot);
+                CartesianCurrent.Rotation().FromNormalized(rotataion);
+
                 /*Here some actions needed for the use of force and torque*/
                 if (Counter%20 == 0) {
-                    std::cout << "CartesianCurrent = " << std::endl
-                              << CartesianCurrent << std::endl << std::endl;
+                    std::cerr << "CartesianCurrent = " << std::endl
+                              << CartesianCurrent << std::endl;                    
                 }
-
             } else {
-                std::cerr << "! LatestReading = " << LatestRead << std::endl
-                          <<"! Counter = " << Counter <<std::endl << std::flush;
+                std::cerr << "Bytes Read : " << bytesRead << std::endl;
+                packetReceived = reinterpret_cast<double *>(buffer);
+                for (int i = 0; i < bytesRead; ++i) {
+                    std::cerr << packetReceived[i] << " ";
+                }
+                std::cerr << std::endl;
             }
         } else {
-            std::cerr << "~" << std::flush;
+            CMN_LOG_CLASS_RUN_DEBUG << "GetReadings: UDP receive failed" << std::endl;
         }
     } else {
         // for state not ready
         CartesianCurrent.Assign(vctFrm4x4::Identity());
     }
+
     CartesianCurrentParam.Position().From(CartesianCurrent);
+    CartesianCurrentParam.SetValid(true);
 }
+
 
 void mtsUDPPSM::SetState(const RobotStateType & newState)
 {
@@ -298,23 +228,23 @@ void mtsUDPPSM::SetState(const RobotStateType & newState)
 
     case PSM_UNINITIALIZED:
         RobotState = newState;
-        EventTriggers.RobotStatusMsg(this->GetName() + " not initialized");
+        EventTriggers.Status(this->GetName() + " not initialized");
         break;
 
     case PSM_READY:
         // when returning from manual mode, need to re-enable PID
         RobotState = newState;
-        EventTriggers.RobotStatusMsg(this->GetName() + " ready");
+        EventTriggers.Status(this->GetName() + " ready");
         break;
 
     case PSM_POSITION_CARTESIAN:
         RobotState = newState;
-        EventTriggers.RobotStatusMsg(this->GetName() + " position cartesian");
+        EventTriggers.Status(this->GetName() + " position cartesian");
         break;
 
     case PSM_MANUAL:
         RobotState = newState;
-        EventTriggers.RobotStatusMsg(this->GetName() + " in manual mode");
+        EventTriggers.Status(this->GetName() + " in manual mode");
         break;
     default:
         break;
@@ -331,23 +261,6 @@ void mtsUDPPSM::RunPositionCartesian(void)
         IsCartesianGoalSet = false;
 
         // @TODO PC : Have to put optimizer here.
-        UDPOptimizer->UpdateParams(this->GetPeriodicity(),
-                                   CartesianCurrent,
-                                   vctFrm4x4(CartesianGoalSet.Goal()));
-
-        vctDoubleVec dx;
-        if(UDPOptimizer->Solve(dx)) {
-            CartesianPositionFrm.Translation().Assign(vct3(dx[0], dx[1], dx[2]));
-            vctDoubleVec rotVector(3);
-            rotVector.Assign(dx,3,0,3);
-            double angle = rotVector.Norm();
-            vct3 axis = rotVector.Normalized();
-            vctAxAnRot3 rotMat;
-            rotMat.Angle() = angle;
-            rotMat.Axis() = axis;
-
-            CartesianPositionFrm.Rotation().FromNormalized(rotMat);
-        }
 
         // compute desired slave position
         CartesianPositionFrm.From(CartesianGoalSet.Goal());
@@ -355,11 +268,11 @@ void mtsUDPPSM::RunPositionCartesian(void)
         // Packet format (10 doubles): Message Type, gripper, x, y, z, q0, qx, qy, qz
         // Message Type value table:
         /*  Let us use the integer part of this number as a binary number, ABCD-EFGH
-            If H=0, this message is invalid
-            If H=1, this message is valid, i.e the desired pose will be accepted by PSM
-            If G=0, this message does not request time stamping
-            If G=1, this message does request time stamping
-        */
+                    If H=0, this message is invalid
+                    If H=1, this message is valid, i.e the desired pose will be accepted by PSM
+                    If G=0, this message does not request time stamping
+                    If G=1, this message does request time stamping
+                */
         double message_type =1;
         if (UdpEchoRequested) {
             const osaTimeServer & timeServer = mtsComponentManager::GetInstance()->GetTimeServer();
@@ -371,22 +284,29 @@ void mtsUDPPSM::RunPositionCartesian(void)
                 message_type = message_type + 2;
                 UdpEchoSent = true;
             } // If not sent, send it.
-            PackageSent[15] = time;
+            PackageSent[20] = time;
         } else {
-            PackageSent[15] = 0;
+            PackageSent[20] = 0;
         }
 
+        vctMatRot3 rotation;
+        rotation.FromNormalized(CartesianPositionFrm.Rotation());
         PackageSent[0] = message_type;
         PackageSent[1] = DesiredOpenAngle;
         vct3 pos = CartesianPositionFrm.Translation();
         PackageSent[2] = pos.X();
         PackageSent[3] = pos.Y();
         PackageSent[4] = pos.Z();
-        vctQuatRot3 qrot(CartesianPositionFrm.Rotation());
-        PackageSent[5] = qrot.W();
-        PackageSent[6] = qrot.X();
-        PackageSent[7] = qrot.Y();
-        PackageSent[8] = qrot.Z();
+
+        PackageSent[5] = rotation(0,0);
+        PackageSent[6] = rotation(1,0);
+        PackageSent[7] = rotation(2,0);
+        PackageSent[8] = rotation(0,1);
+        PackageSent[9] = rotation(1,1);
+        PackageSent[10] = rotation(2,1);
+        PackageSent[11] = rotation(0,2);
+        PackageSent[12] = rotation(1,2);
+        PackageSent[13] = rotation(2,2);
     } else {
         // try to print something here
         PackageSent[0] = 0;
@@ -394,24 +314,27 @@ void mtsUDPPSM::RunPositionCartesian(void)
         PackageSent[2] = 0; // Pos.x
         PackageSent[3] = 0; // Pos.y
         PackageSent[4] = 0; // Pos.z
-        PackageSent[5] = 1; // quat.w
-        PackageSent[6] = 0; // quat.x
-        PackageSent[7] = 0; // quat.y
-        PackageSent[8] = 0; // quat.z
-        PackageSent[15] = 0; //  Time
+
+        // Column  first
+        PackageSent[5] = 1;
+        PackageSent[6] = 0;
+        PackageSent[7] = 0;
+        PackageSent[8] = 0;
+        PackageSent[9] = 1;
+        PackageSent[10] = 0;
+        PackageSent[11] = 0;
+        PackageSent[12] = 0;
+        PackageSent[13] = 1;
+
+        PackageSent[20] = 0; //  Time
     }
-    PackageSent[16] = CommunicationDelay;
+    PackageSent[21] = CommunicationDelay;
 
     if(SocketConfigured) {
         UDPsend.Send((char *)PackageSent, sizeof(PackageSent));
     } else {
         CMN_LOG_CLASS_RUN_ERROR << "RunPositionCartesian: Socket Not Configured." << std::endl;
     }
-}
-
-void mtsUDPPSM::SendUDPPacket()
-{
-
 }
 
 void mtsUDPPSM::SetPositionCartesian(const prmPositionCartesianSet & newPosition)
@@ -441,6 +364,6 @@ void mtsUDPPSM::SetRobotControlState(const std::string & state)
     } else if (state == "Manual") {
         SetState(PSM_MANUAL);
     } else {
-        EventTriggers.RobotErrorMsg(this->GetName() + ": unsupported state " + state);
+        EventTriggers.Error(this->GetName() + ": unsupported state " + state);
     }
 }
